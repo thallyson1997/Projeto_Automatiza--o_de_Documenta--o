@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de Documentação</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="upload-section">
+            <h1>Criar Documentação</h1>
+            <form id="documentForm" class="form-container">
+                <div class="form-group">
+                    <label for="unidade">Unidade:</label>
+                    <textarea id="unidade" name="unidade" placeholder="Digite aqui a unidade da documentação..." rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="data">Data:</label>
+                    <input type="date" id="data" name="data" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="legenda">Legenda:</label>
+                    <textarea id="legenda" name="legenda" placeholder="Digite aqui a legenda da documentação..." rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="imagens">Imagens (até 4):</label>
+                    <input type="file" id="imagens" name="imagens" accept="image/*" multiple required>
+                    <p class="form-hint">Selecione até 4 imagens. Formatos aceitos: JPG, PNG, GIF, WebP</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Gerar Documento</button>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>

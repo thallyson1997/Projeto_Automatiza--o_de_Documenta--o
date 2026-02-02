@@ -1,0 +1,240 @@
+/* ==================== Reset e Estilos Globais ==================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #333;
+}
+
+/* ==================== Container ==================== */
+.container {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px;
+}
+
+/* ==================== Seção de Boas-vindas ==================== */
+.welcome-section {
+    background: white;
+    border-radius: 12px;
+    padding: 60px 40px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+.welcome-section h1 {
+    font-size: 2.5rem;
+    color: #667eea;
+    margin-bottom: 15px;
+    font-weight: 700;
+}
+
+.welcome-section p {
+    font-size: 1.1rem;
+    color: #666;
+    margin-bottom: 40px;
+    line-height: 1.6;
+}
+
+/* ==================== Seção de Upload ==================== */
+.upload-section {
+    background: white;
+    border-radius: 12px;
+    padding: 40px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.upload-section h1 {
+    font-size: 2rem;
+    color: #667eea;
+    margin-bottom: 30px;
+    text-align: center;
+    font-weight: 700;
+}
+
+/* ==================== Formulário ==================== */
+.form-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 1rem;
+}
+
+.form-group textarea,
+.form-group input[type="file"] {
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 44px;
+}
+
+.form-group textarea:focus,
+.form-group input[type="file"]:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea::placeholder {
+    color: #999;
+}
+
+.form-hint {
+    font-size: 0.875rem;
+    color: #999;
+    margin-top: 5px;
+}
+
+/* ==================== Botões ==================== */
+.btn {
+    padding: 12px 30px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:active {
+    transform: translateY(0);
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:active {
+    transform: translateY(0);
+}
+
+/* ==================== Ações do Formulário ==================== */
+.form-actions {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+.form-actions .btn {
+    flex: 1;
+    padding: 14px 20px;
+}
+
+/* ==================== Responsividade ==================== */
+@media (max-width: 768px) {
+    .container {
+        padding: 15px;
+    }
+
+    .welcome-section {
+        padding: 40px 25px;
+    }
+
+    .welcome-section h1 {
+        font-size: 2rem;
+    }
+
+    .welcome-section p {
+        font-size: 1rem;
+    }
+
+    .upload-section {
+        padding: 30px 20px;
+    }
+
+    .upload-section h1 {
+        font-size: 1.5rem;
+    }
+
+    .form-group textarea {
+        min-height: 120px;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-section {
+        padding: 30px 15px;
+    }
+
+    .welcome-section h1 {
+        font-size: 1.5rem;
+    }
+
+    .welcome-section p {
+        font-size: 0.95rem;
+        margin-bottom: 30px;
+    }
+
+    .upload-section {
+        padding: 20px 15px;
+    }
+
+    .upload-section h1 {
+        font-size: 1.3rem;
+        margin-bottom: 20px;
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        font-size: 0.95rem;
+    }
+}
