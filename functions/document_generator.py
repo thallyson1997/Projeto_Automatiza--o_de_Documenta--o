@@ -5,6 +5,8 @@ from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 import io
 import os
+import tempfile
+import shutil
 
 
 def gerar_documento(unidade, data, legenda, imagens=None):
@@ -83,12 +85,20 @@ def gerar_documento(unidade, data, legenda, imagens=None):
                             else:
                                 paragrafo.add_run(texto_completo)
         
-        # Converte o documento para bytes
-        doc_bytes = io.BytesIO()
-        doc.save(doc_bytes)
-        doc_bytes.seek(0)
+        # Salva o documento em um arquivo temporário e depois lê em bytes
+        fd, tmp_doc_path = tempfile.mkstemp(suffix='.docx')
+        os.close(fd)
         
-        return doc_bytes.getvalue()
+        try:
+            doc.save(tmp_doc_path)
+            with open(tmp_doc_path, 'rb') as f:
+                doc_bytes_content = f.read()
+            return doc_bytes_content
+        finally:
+            try:
+                os.unlink(tmp_doc_path)
+            except:
+                pass
     
     except Exception as e:
         raise Exception(f"Erro ao gerar documento: {str(e)}")
@@ -97,105 +107,85 @@ def gerar_documento(unidade, data, legenda, imagens=None):
 def inserir_imagens_na_celula(celula, imagens, altura_imagem_cm=7.5):
     """
     Insere as imagens em uma célula de tabela de forma apropriada:
-    - 1 imagem: centralizada, com altura 1/3 da célula e largura 2/3
+    - 1 imagem: centralizada
     - 2 imagens: uma em cima da outra
     - 3 imagens: 2 em cima, 1 embaixo
     - 4 imagens: 2 em cima, 2 embaixo
-    
-    Args:
-        celula: Célula da tabela do documento Word
-        imagens: Lista com bytes das imagens
-        altura_imagem_cm: Altura das imagens em cm (ajustável dinamicamente)
     """
     num_imagens = len(imagens)
+    if num_imagens == 0:
+        return
     
-    # Limpa a célula
-    for paragrafo in celula.paragraphs:
-        for run in paragrafo.runs:
-            run.text = ''
-    
-    # Obtém o primeiro parágrafo da célula
+    # Remove todos os runs do primeiro parágrafo (limpeza completa)
     primeiro_paragrafo = celula.paragraphs[0]
-    primeiro_paragrafo.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    for run in list(primeiro_paragrafo.runs):
+        run_elem = run._element
+        run_elem.getparent().remove(run_elem)
     
-    # Remove espaçamento do parágrafo
+    primeiro_paragrafo.alignment = WD_ALIGN_PARAGRAPH.CENTER
     remover_espacamento_paragrafo(primeiro_paragrafo)
+    centralizar_celula_verticalmente(celula)
+    
+    # Define dimensões baseado na quantidade de imagens
+    if num_imagens <= 2:
+        largura_cm = 9.6
+    else:
+        largura_cm = 6.8
+    
+    largura = Inches(largura_cm / 2.54)
+    altura = Inches(altura_imagem_cm / 2.54)
     
     if num_imagens == 1:
-        # 1 imagem: 9.6cm x altura_imagem_cm
-        # Centraliza verticalmente a célula
-        centralizar_celula_verticalmente(celula)
-        
-        # Tamanhos em polegadas (convertidos de cm)
-        largura_imagem = Inches(9.6 / 2.54)  # 9.6 cm em polegadas
-        altura_imagem = Inches(altura_imagem_cm / 2.54)   # altura em polegadas
-        
-        adicionar_imagem_com_dimensoes(primeiro_paragrafo, imagens[0], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(primeiro_paragrafo, imagens[0], largura, altura)
     
     elif num_imagens == 2:
-        # 2 imagens uma em cima da outra: 9.6cm x altura_imagem_cm cada
-        centralizar_celula_verticalmente(celula)
-        
-        # Tamanhos em polegadas (convertidos de cm)
-        largura_imagem = Inches(9.6 / 2.54)  # 9.6 cm em polegadas
-        altura_imagem = Inches(altura_imagem_cm / 2.54)   # altura em polegadas
-        
-        adicionar_imagem_com_dimensoes(primeiro_paragrafo, imagens[0], largura_imagem, altura_imagem)
-        
-        # Adiciona espaço entre as imagens
-        espaco_p = celula.add_paragraph()
-        espaco_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        remover_espacamento_paragrafo(espaco_p)
-        espaco_p.paragraph_format.space_after = Pt(6)  # Espaço de 6 pontos
+        _adicionar_imagem_temp(primeiro_paragrafo, imagens[0], largura, altura)
+        primeiro_paragrafo.paragraph_format.space_after = Pt(6)
         
         novo_p = celula.add_paragraph()
         novo_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         remover_espacamento_paragrafo(novo_p)
-        adicionar_imagem_com_dimensoes(novo_p, imagens[1], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(novo_p, imagens[1], largura, altura)
     
     elif num_imagens == 3:
-        # 3 imagens: 2 em cima (lado a lado), 1 embaixo
-        # Cada imagem: 6.8cm x altura_imagem_cm
-        centralizar_celula_verticalmente(celula)
-        
-        # Tamanhos em polegadas (convertidos de cm)
-        largura_imagem = Inches(6.8 / 2.54)  # 6.8 cm em polegadas
-        altura_imagem = Inches(altura_imagem_cm / 2.54)   # altura em polegadas
-        
-        # Primeira linha com 2 imagens lado a lado
-        adicionar_imagem_com_dimensoes(primeiro_paragrafo, imagens[0], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(primeiro_paragrafo, imagens[0], largura, altura)
         primeiro_paragrafo.add_run('  ')
-        adicionar_imagem_com_dimensoes(primeiro_paragrafo, imagens[1], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(primeiro_paragrafo, imagens[1], largura, altura)
         primeiro_paragrafo.paragraph_format.space_after = Pt(6)
         
-        # Segunda linha com 1 imagem centralizada
         novo_p = celula.add_paragraph()
         novo_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         remover_espacamento_paragrafo(novo_p)
-        adicionar_imagem_com_dimensoes(novo_p, imagens[2], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(novo_p, imagens[2], largura, altura)
     
     elif num_imagens >= 4:
-        # 4+ imagens: 2 em cima (lado a lado), 2 embaixo (lado a lado)
-        # Cada imagem: 6.8cm x altura_imagem_cm
-        centralizar_celula_verticalmente(celula)
-        
-        # Tamanhos em polegadas (convertidos de cm)
-        largura_imagem = Inches(6.8 / 2.54)  # 6.8 cm em polegadas
-        altura_imagem = Inches(altura_imagem_cm / 2.54)   # altura em polegadas
-        
-        # Primeira linha com 2 imagens lado a lado
-        adicionar_imagem_com_dimensoes(primeiro_paragrafo, imagens[0], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(primeiro_paragrafo, imagens[0], largura, altura)
         primeiro_paragrafo.add_run('  ')
-        adicionar_imagem_com_dimensoes(primeiro_paragrafo, imagens[1], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(primeiro_paragrafo, imagens[1], largura, altura)
         primeiro_paragrafo.paragraph_format.space_after = Pt(6)
         
-        # Segunda linha com 2 imagens lado a lado
         novo_p = celula.add_paragraph()
         novo_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         remover_espacamento_paragrafo(novo_p)
-        adicionar_imagem_com_dimensoes(novo_p, imagens[2], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(novo_p, imagens[2], largura, altura)
         novo_p.add_run('  ')
-        adicionar_imagem_com_dimensoes(novo_p, imagens[3], largura_imagem, altura_imagem)
+        _adicionar_imagem_temp(novo_p, imagens[3], largura, altura)
+
+
+def _adicionar_imagem_temp(paragrafo, imagem_bytes, largura, altura):
+    """Helper: Adiciona imagem usando arquivo temporário"""
+    fd, tmp_path = tempfile.mkstemp(suffix='.png')
+    os.close(fd)
+    
+    try:
+        with open(tmp_path, 'wb') as f:
+            f.write(imagem_bytes)
+        paragrafo.add_run().add_picture(tmp_path, width=largura, height=altura)
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except:
+            pass
 
 
 def obter_largura_celula(celula):
@@ -220,22 +210,6 @@ def obter_largura_celula(celula):
     
     # Retorna valor padrão se não conseguir obter
     return 3.0  # 3 polegadas como padrão
-
-
-def adicionar_imagem_com_dimensoes(paragrafo, imagem_bytes, largura, altura):
-    """
-    Adiciona uma imagem com largura e altura específicas em polegadas.
-    
-    Args:
-        paragrafo: Parágrafo onde adicionar a imagem
-        imagem_bytes: Bytes da imagem
-        largura: Largura em polegadas
-        altura: Altura em polegadas
-    """
-    imagem_stream = io.BytesIO(imagem_bytes)
-    
-    run = paragrafo.add_run()
-    picture = run.add_picture(imagem_stream, width=largura, height=altura)
 
 
 def centralizar_celula_verticalmente(celula):
@@ -290,92 +264,184 @@ def gerar_documento_multiplo(formularios):
         bytes: Documento Word em bytes com múltiplas páginas
     """
     try:
+        import zipfile
+        from lxml import etree
+        
         modelo_path = os.path.join(os.path.dirname(__file__), '..', 'documento', 'modelo.docx')
         
         if not os.path.exists(modelo_path):
             raise FileNotFoundError(f"Arquivo modelo não encontrado em {modelo_path}")
         
-        # Cria documento novo carregando o modelo
-        doc_final = Document(modelo_path)
+        # Cria documentos temporários para cada formulário
+        temp_docs = []
         
-        # Remove todo o conteúdo do documento final (mantém estrutura)
-        for elemento in doc_final.element.body:
-            doc_final.element.body.remove(elemento)
+        for form_data in formularios:
+            # Gera documento individual usando gerar_documento
+            doc_bytes = gerar_documento(
+                form_data['unidade'],
+                form_data['data'],
+                form_data['legenda'],
+                form_data['imagens']
+            )
+            
+            # Salva em arquivo temporário
+            fd, tmp_path = tempfile.mkstemp(suffix='.docx')
+            os.close(fd)
+            
+            with open(tmp_path, 'wb') as f:
+                f.write(doc_bytes)
+            
+            temp_docs.append(tmp_path)
         
-        # Processa cada formulário
-        for idx, form_data in enumerate(formularios):
-            # Gera documento individual para este formulário
-            doc_temp = Document(modelo_path)
+        # Agora merges todos os documentos usando o primeiro como base
+        # e adicionando conteúdo dos demais
+        final_temp_dir = tempfile.mkdtemp()
+        final_zip_path = os.path.join(final_temp_dir, 'merged.docx')
+        
+        try:
+            # Extrai o primeiro documento como base
+            base_doc_path = temp_docs[0]
             
-            unidade = form_data['unidade']
-            data = form_data['data']
-            legenda = form_data['legenda']
-            imagens = form_data['imagens']
+            with zipfile.ZipFile(base_doc_path, 'r') as zip_ref:
+                zip_ref.extractall(final_temp_dir)
             
-            # Substitui placeholders
-            for paragrafo in doc_temp.paragraphs:
-                texto_completo = paragrafo.text
+            # Lê o document.xml e o document.xml.rels do documento base
+            doc_xml_path = os.path.join(final_temp_dir, 'word', 'document.xml')
+            rels_path = os.path.join(final_temp_dir, 'word', '_rels', 'document.xml.rels')
+            
+            doc_tree = etree.parse(doc_xml_path)
+            doc_root = doc_tree.getroot()
+            
+            rels_tree = etree.parse(rels_path)
+            rels_root = rels_tree.getroot()
+            
+            # Namespace do documento
+            ns_doc = {'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
+            
+            # Encontra o body do documento
+            body = doc_root.find('.//w:body', ns_doc)
+            
+            # Processa os documentos adicionais (índice 1 em diante)
+            media_counter = 1
+            
+            # Conta quantas imagens já existem
+            media_files = os.listdir(os.path.join(final_temp_dir, 'word', 'media'))
+            if media_files:
+                media_counter = max([int(f.replace('image', '').replace('.png', '')) for f in media_files if f.startswith('image')]) + 1
+            
+            for extra_doc_path in temp_docs[1:]:
+                # Extrai o documento adicional em diretório temporário
+                extra_temp_dir = tempfile.mkdtemp()
                 
-                if '[UNIDADE]' in texto_completo or '[DATA]' in texto_completo or '[LEGENDA]' in texto_completo:
-                    texto_completo = texto_completo.replace('[UNIDADE]', unidade)
-                    texto_completo = texto_completo.replace('[DATA]', data)
-                    texto_completo = texto_completo.replace('[LEGENDA]', legenda)
+                with zipfile.ZipFile(extra_doc_path, 'r') as zip_ref:
+                    zip_ref.extractall(extra_temp_dir)
+                
+                # Lê o document.xml do documento adicional
+                extra_doc_xml_path = os.path.join(extra_temp_dir, 'word', 'document.xml')
+                extra_doc_tree = etree.parse(extra_doc_xml_path)
+                extra_doc_root = extra_doc_tree.getroot()
+                extra_body = extra_doc_root.find('.//w:body', ns_doc)
+                
+                # Lê as relações do documento adicional
+                extra_rels_path = os.path.join(extra_temp_dir, 'word', '_rels', 'document.xml.rels')
+                extra_rels_tree = etree.parse(extra_rels_path)
+                extra_rels_root = extra_rels_tree.getroot()
+                
+                # Mapeamento de IDs antigos para novos (para relações)
+                rel_id_mapping = {}
+                ns_rels = {'r': 'http://schemas.openxmlformats.org/package/2006/relationships'}
+                
+                # Copia as relações de imagem do documento adicional
+                for extra_rel in extra_rels_root.findall('.//r:Relationship[@Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"]', ns_rels):
+                    old_rel_id = extra_rel.get('Id')
+                    old_target = extra_rel.get('Target')
                     
-                    for run in paragrafo.runs:
-                        run.text = ''
+                    # Cria novo ID de relação
+                    new_rel_id = f'rId{999 + media_counter}'
+                    rel_id_mapping[old_rel_id] = new_rel_id
                     
-                    if paragrafo.runs:
-                        paragrafo.runs[0].text = texto_completo
-                    else:
-                        paragrafo.add_run(texto_completo)
+                    # Copia o arquivo de imagem
+                    old_image_path = os.path.join(extra_temp_dir, 'word', old_target)
+                    new_image_name = f'image{media_counter}.png'
+                    new_image_path = os.path.join(final_temp_dir, 'word', 'media', new_image_name)
+                    
+                    if os.path.exists(old_image_path):
+                        shutil.copy(old_image_path, new_image_path)
+                    
+                    # Adiciona a relação ao documento final
+                    new_rel = etree.Element('{http://schemas.openxmlformats.org/package/2006/relationships}Relationship')
+                    new_rel.set('Id', new_rel_id)
+                    new_rel.set('Type', 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/image')
+                    new_rel.set('Target', f'media/{new_image_name}')
+                    rels_root.append(new_rel)
+                    
+                    media_counter += 1
+                
+                # Adiciona quebra de página antes de copiar conteúdo adicional
+                page_break = etree.Element('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}p')
+                pPr = etree.SubElement(page_break, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}pPr')
+                br = etree.SubElement(pPr, '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}br')
+                br.set('{http://schemas.openxmlformats.org/wordprocessingml/2006/main}type', 'page')
+                body.append(page_break)
+                
+                # Copia os elementos do body do documento adicional
+                for elemento in extra_body:
+                    # Atualiza as referências de relação nos elementos copiados
+                    _atualizar_refs_nos_elementos(elemento, rel_id_mapping)
+                    body.append(elemento)
+                
+                # Limpa o diretório temporário
+                shutil.rmtree(extra_temp_dir)
             
-            # Substitui em tabelas
-            for tabela in doc_temp.tables:
-                for linha in tabela.rows:
-                    for celula in linha.cells:
-                        for paragrafo in celula.paragraphs:
-                            texto_completo = paragrafo.text
-                            
-                            if '[IMAGENS]' in texto_completo:
-                                for run in paragrafo.runs:
-                                    run.text = ''
-                                
-                                if imagens:
-                                    inserir_imagens_na_celula(celula, imagens, 7.5)
-                            
-                            elif '[UNIDADE]' in texto_completo or '[DATA]' in texto_completo or '[LEGENDA]' in texto_completo:
-                                texto_completo = texto_completo.replace('[UNIDADE]', unidade)
-                                texto_completo = texto_completo.replace('[DATA]', data)
-                                texto_completo = texto_completo.replace('[LEGENDA]', legenda)
-                                
-                                for run in paragrafo.runs:
-                                    run.text = ''
-                                
-                                if paragrafo.runs:
-                                    paragrafo.runs[0].text = texto_completo
-                                else:
-                                    paragrafo.add_run(texto_completo)
+            # Salva o XML atualizado
+            doc_tree.write(doc_xml_path, xml_declaration=True, encoding='UTF-8', standalone=True)
+            rels_tree.write(rels_path, xml_declaration=True, encoding='UTF-8', standalone=True)
             
-            # Copia o conteúdo do documento temporário para o final
-            # (parágrafos e tabelas com todas as imagens e formatação)
-            for elemento in doc_temp.element.body:
-                doc_final.element.body.append(elemento)
+            # Recria o arquivo DOCX
+            with zipfile.ZipFile(final_zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_ref:
+                for root, dirs, files in os.walk(final_temp_dir):
+                    for file in files:
+                        if file == 'merged.docx':
+                            continue
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, final_temp_dir)
+                        zip_ref.write(file_path, arcname)
             
-            # Adiciona quebra de página após cada formulário (exceto o último)
-            if idx < len(formularios) - 1:
-                # Adiciona parágrafo com quebra de página
-                p = doc_final.add_paragraph()
-                pPr = p._element.get_or_add_pPr()
-                pPr.append(OxmlElement('w:br'))
-                pPr.append(OxmlElement('w:pageBreak'))
+            # Lê o arquivo final
+            with open(final_zip_path, 'rb') as f:
+                result_bytes = f.read()
+            
+            return result_bytes
         
-        # Converte para bytes
-        doc_bytes = io.BytesIO()
-        doc_final.save(doc_bytes)
-        doc_bytes.seek(0)
-        
-        return doc_bytes.getvalue()
+        finally:
+            # Limpa os arquivos temporários
+            for doc_path in temp_docs:
+                try:
+                    os.unlink(doc_path)
+                except:
+                    pass
+            
+            try:
+                shutil.rmtree(final_temp_dir)
+            except:
+                pass
     
     except Exception as e:
         raise Exception(f"Erro ao gerar documento múltiplo: {str(e)}")
+
+
+def _atualizar_refs_nos_elementos(elemento, rel_id_mapping):
+    """Atualiza as referências de relação nos elementos XML copiados"""
+    ns_r = {'r': 'http://schemas.openxmlformats.org/officeDocument/2006/relationships'}
+    
+    # Procura por atributos r:embed ou r:link
+    for key in elemento.attrib:
+        if 'embed' in key or 'link' in key:
+            old_id = elemento.get(key)
+            if old_id in rel_id_mapping:
+                elemento.set(key, rel_id_mapping[old_id])
+    
+    # Recursivamente processa elementos filhos
+    for child in elemento:
+        _atualizar_refs_nos_elementos(child, rel_id_mapping)
 

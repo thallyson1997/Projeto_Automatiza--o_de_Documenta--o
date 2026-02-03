@@ -493,3 +493,90 @@ body {
         gap: 10px;
     }
 }
+
+/* ==================== Repeat Checkboxes ==================== */
+.repeat-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: #f0f4ff;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.repeat-checkbox input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #667eea;
+}
+
+.repeat-checkbox label {
+    cursor: pointer;
+    color: #667eea;
+    font-weight: 500;
+    margin: 0;
+}
+
+/* ==================== Toast Notifications ==================== */
+.toast {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999;
+    animation: slideInUp 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-width: 400px;
+}
+
+.toast.success {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4);
+}
+
+.toast.error {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    box-shadow: 0 8px 32px rgba(239, 68, 68, 0.4);
+}
+
+.toast.hide {
+    animation: slideOutDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.toast-icon {
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+}
+
+@keyframes slideInUp {
+    from {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutDown {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(100px);
+        opacity: 0;
+    }
+}

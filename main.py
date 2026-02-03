@@ -56,7 +56,11 @@ def gerar_doc():
             
             for arquivo in arquivos:
                 if arquivo and arquivo.filename != '':
-                    imagens.append(arquivo.read())
+                    # Lê os bytes do arquivo e validação
+                    arquivo.seek(0)  # Reseta o ponteiro para o início
+                    arquivo_bytes = arquivo.read()
+                    if len(arquivo_bytes) > 0:
+                        imagens.append(arquivo_bytes)
             
             if not imagens:
                 return {'erro': f'Pelo menos uma imagem válida deve ser enviada no formulário {form_index + 1}'}, 400
@@ -73,8 +77,13 @@ def gerar_doc():
         if not formularios:
             return {'erro': 'Pelo menos um formulário deve ser preenchido'}, 400
         
-        # Gera o documento único com múltiplas páginas
-        documento_bytes = gerar_documento_multiplo(formularios)
+        # Se houver apenas 1 formulário, usa gerar_documento
+        if len(formularios) == 1:
+            form = formularios[0]
+            documento_bytes = gerar_documento(form['unidade'], form['data'], form['legenda'], form['imagens'])
+        else:
+            # Gera o documento único com múltiplas páginas
+            documento_bytes = gerar_documento_multiplo(formularios)
         
         # Retorna o documento como download
         return send_file(

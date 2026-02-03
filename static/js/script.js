@@ -7,6 +7,32 @@ document.addEventListener('DOMContentLoaded', function() {
     let formCount = 1;
     let addingForm = false;
     
+    // Função para mostrar notificação toast
+    function showToast(message, type = 'success', duration = 4000) {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icons = {
+            success: '✓',
+            error: '✕',
+            info: 'ℹ'
+        };
+        
+        toast.innerHTML = `
+            <span class="toast-icon">${icons[type]}</span>
+            <span>${message}</span>
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.classList.add('hide');
+            setTimeout(() => {
+                toast.remove();
+            }, 400);
+        }, duration);
+    }
+    
     // Função para criar novo formulário
     function addNewForm() {
         if (addingForm) return; // Evita duplicação
@@ -60,6 +86,9 @@ document.addEventListener('DOMContentLoaded', function() {
         // Adicionar listeners
         setupFormListeners(newFormWrapper);
         setupRemoveButton(newFormWrapper);
+        
+        // Sincroniza se checkboxes estão marcadas
+        syncRepeatFieldsIfNeeded();
         
         addingForm = false;
     }
@@ -143,11 +172,113 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Setup de checkboxes de repetição (apenas no primeiro formulário)
+    function setupRepeatCheckboxes() {
+        const repeatUnidadeCheckbox = document.getElementById('repeat-unidade-0');
+        const repeatDataCheckbox = document.getElementById('repeat-data-0');
+        const unidadeInput = document.getElementById('unidade-0');
+        const dataInput = document.getElementById('data-0');
+        
+        if (!repeatUnidadeCheckbox || !unidadeInput) return;
+        
+        // Sincroniza Unidade
+        function syncUnidade() {
+            const unidadeValue = unidadeInput.value;
+            const otherForms = document.querySelectorAll('.document-form:not([data-form-index="0"])');
+            
+            otherForms.forEach(form => {
+                const formIndex = form.getAttribute('data-form-index');
+                const otherUnidadeInput = document.getElementById(`unidade-${formIndex}`);
+                
+                if (otherUnidadeInput) {
+                    if (repeatUnidadeCheckbox.checked) {
+                        otherUnidadeInput.value = unidadeValue;
+                    } else {
+                        otherUnidadeInput.value = '';
+                    }
+                }
+            });
+        }
+        
+        // Sincroniza Data
+        function syncData() {
+            const dataValue = dataInput.value;
+            const otherForms = document.querySelectorAll('.document-form:not([data-form-index="0"])');
+            
+            otherForms.forEach(form => {
+                const formIndex = form.getAttribute('data-form-index');
+                const otherDataInput = document.getElementById(`data-${formIndex}`);
+                
+                if (otherDataInput) {
+                    if (repeatDataCheckbox.checked) {
+                        otherDataInput.value = dataValue;
+                    } else {
+                        otherDataInput.value = '';
+                    }
+                }
+            });
+        }
+        
+        // Listeners para checkboxes
+        repeatUnidadeCheckbox.addEventListener('change', syncUnidade);
+        repeatDataCheckbox.addEventListener('change', syncData);
+        
+        // Listeners para mudanças nos inputs do primeiro formulário
+        unidadeInput.addEventListener('input', () => {
+            if (repeatUnidadeCheckbox.checked) {
+                syncUnidade();
+            }
+        });
+        
+        dataInput.addEventListener('change', () => {
+            if (repeatDataCheckbox.checked) {
+                syncData();
+            }
+        });
+    }
+    
+    // Sincroniza campos se checkboxes estão marcadas (usado ao criar novo formulário)
+    function syncRepeatFieldsIfNeeded() {
+        const repeatUnidadeCheckbox = document.getElementById('repeat-unidade-0');
+        const repeatDataCheckbox = document.getElementById('repeat-data-0');
+        
+        if (!repeatUnidadeCheckbox) return;
+        
+        if (repeatUnidadeCheckbox.checked) {
+            const unidadeInput = document.getElementById('unidade-0');
+            const unidadeValue = unidadeInput.value;
+            const otherForms = document.querySelectorAll('.document-form:not([data-form-index="0"])');
+            
+            otherForms.forEach(form => {
+                const formIndex = form.getAttribute('data-form-index');
+                const otherUnidadeInput = document.getElementById(`unidade-${formIndex}`);
+                if (otherUnidadeInput) {
+                    otherUnidadeInput.value = unidadeValue;
+                }
+            });
+        }
+        
+        if (repeatDataCheckbox && repeatDataCheckbox.checked) {
+            const dataInput = document.getElementById('data-0');
+            const dataValue = dataInput.value;
+            const otherForms = document.querySelectorAll('.document-form:not([data-form-index="0"])');
+            
+            otherForms.forEach(form => {
+                const formIndex = form.getAttribute('data-form-index');
+                const otherDataInput = document.getElementById(`data-${formIndex}`);
+                if (otherDataInput) {
+                    otherDataInput.value = dataValue;
+                }
+            });
+        }
+    }
+    
     // Setup primeiro formulário
     const firstFormWrapper = document.querySelector('.form-wrapper');
     if (firstFormWrapper) {
         setupFormListeners(firstFormWrapper);
         setupRemoveButton(firstFormWrapper);
+        setupRepeatCheckboxes();
     }
     
     // Submit
@@ -158,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const forms = document.querySelectorAll('.document-form');
             
             if (forms.length === 0) {
-                alert('Adicione pelo menos um formulário');
+                showToast('Adicione pelo menos um formulário', 'error');
                 return;
             }
             
@@ -204,7 +335,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         window.URL.revokeObjectURL(url);
                         document.body.removeChild(a);
                         
-                        alert(`Documento gerado com sucesso! ${forms.length} página(s) incluída(s).`);
+                        showToast(`Documento gerado com sucesso! ${forms.length} página(s) criada(s) 🎉`, 'success', 5000);
                         
                         // Limpa todos os formulários
                         document.querySelectorAll('.form-wrapper').forEach((wrapper, idx) => {
@@ -229,7 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert(`Erro ao gerar documento: ${error.message}`);
+                showToast(`Erro ao gerar documento: ${error.message}`, 'error', 5000);
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Gerar Documento';
             });
