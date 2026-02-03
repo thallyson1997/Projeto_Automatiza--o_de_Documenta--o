@@ -1,44 +1,227 @@
 // Aguarda o carregamento do DOM
 document.addEventListener('DOMContentLoaded', function() {
-    const form = document.getElementById('documentForm');
+    const floatingBtn = document.getElementById('floatingBtn');
+    const formsContainer = document.getElementById('formsContainer');
+    const submitBtn = document.getElementById('submitBtn');
     
-    if (form) {
-        form.addEventListener('submit', function(e) {
+    let formCount = 1;
+    let addingForm = false;
+    
+    // Função para criar novo formulário
+    function addNewForm() {
+        if (addingForm) return; // Evita duplicação
+        addingForm = true;
+        
+        formCount++;
+        const formIndex = formCount - 1;
+        
+        const newFormWrapper = document.createElement('div');
+        newFormWrapper.className = 'form-wrapper';
+        newFormWrapper.setAttribute('data-form-number', formCount);
+        
+        newFormWrapper.innerHTML = `
+            <div class="form-header">
+                <h3>Formulário ${formCount}</h3>
+                <button type="button" class="btn-remove-form">×</button>
+            </div>
+            <form class="document-form" data-form-index="${formIndex}">
+                <div class="form-row">
+                    <div class="form-group form-group-small">
+                        <label for="unidade-${formIndex}">Unidade:</label>
+                        <textarea id="unidade-${formIndex}" name="unidade" placeholder="Digite a unidade..." rows="1" required></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="data-${formIndex}">Data:</label>
+                        <input type="date" id="data-${formIndex}" name="data" class="input-date" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="legenda-${formIndex}">Legenda:</label>
+                    <textarea id="legenda-${formIndex}" name="legenda" placeholder="Digite aqui a legenda da documentação..." rows="3" required></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="imagens-${formIndex}">Imagens (até 4):</label>
+                    <input type="file" id="imagens-${formIndex}" name="imagens" accept="image/*" multiple required>
+                    <p class="form-hint">Selecione até 4 imagens. Formatos aceitos: JPG, PNG, GIF, WebP</p>
+                </div>
+
+                <div class="image-preview-container" style="display: none;">
+                    <label>Imagens Carregadas:</label>
+                    <div class="image-grid"></div>
+                </div>
+            </form>
+        `;
+        
+        formsContainer.appendChild(newFormWrapper);
+        
+        // Adicionar listeners
+        setupFormListeners(newFormWrapper);
+        setupRemoveButton(newFormWrapper);
+        
+        addingForm = false;
+    }
+    
+    // Setup do botão remover
+    function setupRemoveButton(formWrapper) {
+        const removeBtn = formWrapper.querySelector('.btn-remove-form');
+        removeBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            formWrapper.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => {
+                formWrapper.remove();
+                formCount--;
+                
+                // Renumerar
+                document.querySelectorAll('.form-wrapper').forEach((wrapper, index) => {
+                    wrapper.querySelector('.form-header h3').textContent = `Formulário ${index + 1}`;
+                });
+            }, 300);
+        });
+    }
+    
+    // Botão flutuante
+    if (floatingBtn) {
+        floatingBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            addNewForm();
+        });
+    }
+    
+    // Setup de listeners de imagens
+    function setupFormListeners(formWrapper) {
+        const imagensInput = formWrapper.querySelector('input[name="imagens"]');
+        const previewContainer = formWrapper.querySelector('.image-preview-container');
+        const imageGrid = previewContainer.querySelector('.image-grid');
+        
+        if (!imagensInput) return;
+        
+        imagensInput.addEventListener('change', function(e) {
+            const files = Array.from(this.files).slice(0, 4);
+            
+            if (files.length > 0) {
+                imageGrid.innerHTML = '';
+                
+                files.forEach((file, index) => {
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const preview = document.createElement('div');
+                        preview.className = 'image-preview';
+                        preview.innerHTML = `
+                            <img src="${event.target.result}" alt="Prévia ${index + 1}">
+                            <button type="button" class="image-preview-remove" data-index="${index}">×</button>
+                        `;
+                        
+                        imageGrid.appendChild(preview);
+                        
+                        preview.querySelector('.image-preview-remove').addEventListener('click', function(e) {
+                            e.preventDefault();
+                            const dt = new DataTransfer();
+                            
+                            for (let i = 0; i < imagensInput.files.length; i++) {
+                                if (i !== parseInt(this.dataset.index)) {
+                                    dt.items.add(imagensInput.files[i]);
+                                }
+                            }
+                            
+                            imagensInput.files = dt.files;
+                            imagensInput.dispatchEvent(new Event('change'));
+                        });
+                    };
+                    
+                    reader.readAsDataURL(file);
+                });
+                
+                previewContainer.style.display = 'block';
+            } else {
+                previewContainer.style.display = 'none';
+                imageGrid.innerHTML = '';
+            }
+        });
+    }
+    
+    // Setup primeiro formulário
+    const firstFormWrapper = document.querySelector('.form-wrapper');
+    if (firstFormWrapper) {
+        setupFormListeners(firstFormWrapper);
+        setupRemoveButton(firstFormWrapper);
+    }
+    
+    // Submit
+    if (submitBtn) {
+        submitBtn.addEventListener('click', function(e) {
             e.preventDefault();
             
-            // Obtém os dados do formulário
-            const formData = new FormData(form);
+            const forms = document.querySelectorAll('.document-form');
             
-            // Desabilita o botão de submit
-            const submitBtn = form.querySelector('button[type="submit"]');
+            if (forms.length === 0) {
+                alert('Adicione pelo menos um formulário');
+                return;
+            }
+            
+            // Cria FormData com todos os formulários
+            const formDataGeral = new FormData();
+            
+            forms.forEach((form, index) => {
+                const unidade = form.querySelector(`textarea[name="unidade"]`).value;
+                const data = form.querySelector(`input[name="data"]`).value;
+                const legenda = form.querySelector(`textarea[name="legenda"]`).value;
+                const imagensInput = form.querySelector(`input[name="imagens"]`);
+                
+                // Adiciona os campos ao FormData com índice
+                formDataGeral.append(`unidade-${index}`, unidade);
+                formDataGeral.append(`data-${index}`, data);
+                formDataGeral.append(`legenda-${index}`, legenda);
+                
+                // Adiciona as imagens
+                if (imagensInput.files) {
+                    for (let i = 0; i < imagensInput.files.length; i++) {
+                        formDataGeral.append(`imagens-${index}`, imagensInput.files[i]);
+                    }
+                }
+            });
+            
             submitBtn.disabled = true;
             submitBtn.textContent = 'Gerando...';
             
-            // Faz a requisição
+            // Envia um único request com todos os formulários
             fetch('/gerar-documento', {
                 method: 'POST',
-                body: formData
+                body: formDataGeral
             })
             .then(response => {
                 if (response.ok) {
-                    // Se sucesso, faz o download do arquivo
                     return response.blob().then(blob => {
-                        // Cria um link temporário para download
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = 'documento.docx';
+                        a.download = 'documentacao.docx';
                         document.body.appendChild(a);
                         a.click();
                         window.URL.revokeObjectURL(url);
                         document.body.removeChild(a);
                         
-                        // Limpa o formulário
-                        form.reset();
-                        alert('Documento gerado e baixado com sucesso!');
+                        alert(`Documento gerado com sucesso! ${forms.length} página(s) incluída(s).`);
+                        
+                        // Limpa todos os formulários
+                        document.querySelectorAll('.form-wrapper').forEach((wrapper, idx) => {
+                            if (idx > 0) wrapper.remove();
+                            else {
+                                wrapper.querySelectorAll('input, textarea').forEach(input => {
+                                    input.value = '';
+                                });
+                                wrapper.querySelector('.image-preview-container').style.display = 'none';
+                                wrapper.querySelector('.image-grid').innerHTML = '';
+                            }
+                        });
+                        formCount = 1;
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Gerar Documento';
                     });
                 } else {
-                    // Se erro, tenta ler a resposta de erro
                     return response.json().then(data => {
                         throw new Error(data.erro || 'Erro ao gerar documento');
                     });
@@ -46,10 +229,7 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Erro:', error);
-                alert('Erro ao gerar documento: ' + error.message);
-            })
-            .finally(() => {
-                // Reabilita o botão
+                alert(`Erro ao gerar documento: ${error.message}`);
                 submitBtn.disabled = false;
                 submitBtn.textContent = 'Gerar Documento';
             });

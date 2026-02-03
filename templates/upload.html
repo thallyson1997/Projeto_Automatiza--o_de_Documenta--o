@@ -10,34 +10,57 @@
     <div class="container">
         <div class="upload-section">
             <h1>Criar Documentação</h1>
-            <form id="documentForm" class="form-container">
-                <div class="form-group">
-                    <label for="unidade">Unidade:</label>
-                    <textarea id="unidade" name="unidade" placeholder="Digite aqui a unidade da documentação..." rows="3" required></textarea>
-                </div>
+            
+            <!-- Contêiner para múltiplos formulários -->
+            <div id="formsContainer">
+                <div class="form-wrapper" data-form-number="1">
+                    <div class="form-header">
+                        <h3>Formulário 1</h3>
+                        <button type="button" class="btn-remove-form" style="display: none;">×</button>
+                    </div>
+                    <form class="document-form" data-form-index="0">
+                        <div class="form-row">
+                            <div class="form-group form-group-small">
+                                <label for="unidade-0">Unidade:</label>
+                                <textarea id="unidade-0" name="unidade" placeholder="Digite a unidade..." rows="1" required></textarea>
+                            </div>
 
-                <div class="form-group">
-                    <label for="data">Data:</label>
-                    <input type="date" id="data" name="data" required>
-                </div>
+                            <div class="form-group">
+                                <label for="data-0">Data:</label>
+                                <input type="date" id="data-0" name="data" class="input-date" required>
+                            </div>
+                        </div>
 
-                <div class="form-group">
-                    <label for="legenda">Legenda:</label>
-                    <textarea id="legenda" name="legenda" placeholder="Digite aqui a legenda da documentação..." rows="3" required></textarea>
-                </div>
+                        <div class="form-group">
+                            <label for="legenda-0">Legenda:</label>
+                            <textarea id="legenda-0" name="legenda" placeholder="Digite aqui a legenda da documentação..." rows="3" required></textarea>
+                        </div>
 
-                <div class="form-group">
-                    <label for="imagens">Imagens (até 4):</label>
-                    <input type="file" id="imagens" name="imagens" accept="image/*" multiple required>
-                    <p class="form-hint">Selecione até 4 imagens. Formatos aceitos: JPG, PNG, GIF, WebP</p>
-                </div>
+                        <div class="form-group">
+                            <label for="imagens-0">Imagens (até 4):</label>
+                            <input type="file" id="imagens-0" name="imagens" accept="image/*" multiple required>
+                            <p class="form-hint">Selecione até 4 imagens. Formatos aceitos: JPG, PNG, GIF, WebP</p>
+                        </div>
 
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Gerar Documento</button>
-                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+                        <!-- Pré-visualização de imagens -->
+                        <div class="image-preview-container" style="display: none;">
+                            <label>Imagens Carregadas:</label>
+                            <div class="image-grid"></div>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary" id="submitBtn">Gerar Documento</button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+            </div>
         </div>
+        
+        <!-- Botão flutuante -->
+        <button id="floatingBtn" class="floating-btn" title="Adicionar formulário">
+            <span>+</span>
+        </button>
     </div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
