@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, send_file
 from functions.document_generator import gerar_documento, gerar_documento_multiplo
+from functions.document_generator2 import gerar_documento_modelo2_empresa
 import io
 
 app = Flask(__name__, template_folder='templates')
@@ -15,6 +16,12 @@ def index():
 def upload():
     """Rota da página de upload de documentação"""
     return render_template('upload.html')
+
+
+@app.route('/upload2')
+def upload2():
+    """Rota da página de upload para fiscalização cozinha"""
+    return render_template('upload2.html')
 
 
 @app.route('/gerar-documento', methods=['POST'])
@@ -93,6 +100,99 @@ def gerar_doc():
             download_name='documentacao.docx'
         )
     
+    except Exception as e:
+        return {'erro': str(e)}, 500
+
+
+@app.route('/gerar-documento2', methods=['POST'])
+def gerar_doc_modelo2():
+    """Rota para gerar modelo2 com capa fixa e secoes de formularios repetidas"""
+    try:
+        from datetime import datetime
+
+        empresa = request.form.get('empresa', '').strip()
+        if not empresa:
+            empresa = request.form.get('unidade-0', '').strip()
+
+        if not empresa:
+            return {'erro': 'O campo Empresa deve ser preenchido'}, 400
+
+        data_inicio_iso = request.form.get('data_inicio', '').strip()
+        data_fim_iso = request.form.get('data_fim', '').strip()
+
+        if not data_inicio_iso or not data_fim_iso:
+            return {'erro': 'Os campos de Período (Data Início e Data Fim) devem ser preenchidos'}, 400
+
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio_iso, '%Y-%m-%d')
+            data_fim_obj = datetime.strptime(data_fim_iso, '%Y-%m-%d')
+        except Exception:
+            return {'erro': 'Formato de data inválido. Use o formato AAAA-MM-DD.'}, 400
+
+        if data_inicio_obj > data_fim_obj:
+            return {'erro': 'A Data Início não pode ser maior que a Data Fim.'}, 400
+
+        datas_formulario = []
+        form_index = 0
+
+        while True:
+            data_formulario_iso = request.form.get(f'data_formulario-{form_index}', '').strip()
+
+            if not data_formulario_iso:
+                if form_index == 0:
+                    return {'erro': 'Pelo menos um formulário deve ser preenchido'}, 400
+                break
+
+            try:
+                data_formulario_obj = datetime.strptime(data_formulario_iso, '%Y-%m-%d')
+            except Exception:
+                return {'erro': f'Formato da Data do Formulário {form_index + 1} inválido. Use AAAA-MM-DD.'}, 400
+
+            if data_formulario_obj < data_inicio_obj or data_formulario_obj > data_fim_obj:
+                return {'erro': f'A data do Formulário {form_index + 1} deve estar entre Data Início e Data Fim.'}, 400
+
+            datas_formulario.append(data_formulario_obj.strftime('%d/%m/%Y'))
+            form_index += 1
+
+        data_inicio = data_inicio_obj.strftime('%d/%m/%Y')
+        data_fim = data_fim_obj.strftime('%d/%m/%Y')
+
+        imagens_formularios = []
+        for index in range(len(datas_formulario)):
+            imagem_lanche = request.files.get(f'imagem_lanche-{index}')
+            imagem_ceia = request.files.get(f'imagem_ceia-{index}')
+
+            imagem_lanche_bytes = None
+            imagem_ceia_bytes = None
+
+            if imagem_lanche and imagem_lanche.filename:
+                imagem_lanche_bytes = imagem_lanche.read()
+
+            if imagem_ceia and imagem_ceia.filename:
+                imagem_ceia_bytes = imagem_ceia.read()
+
+            imagens_formularios.append({
+                'imagem_lanche': imagem_lanche_bytes,
+                'imagem_ceia': imagem_ceia_bytes,
+                'legenda_lanche': request.form.get(f'legenda_lanche-{index}', '').strip(),
+                'legenda_ceia': request.form.get(f'legenda_ceia-{index}', '').strip()
+            })
+
+        documento_bytes = gerar_documento_modelo2_empresa(
+            empresa,
+            data_inicio,
+            data_fim,
+            datas_formulario,
+            imagens_formularios
+        )
+
+        return send_file(
+            io.BytesIO(documento_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name='modelo2.docx'
+        )
+
     except Exception as e:
         return {'erro': str(e)}, 500
 

@@ -3,6 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const floatingBtn = document.getElementById('floatingBtn');
     const formsContainer = document.getElementById('formsContainer');
     const submitBtn = document.getElementById('submitBtn');
+    const submitUrl = document.body.dataset.submitUrl || '/gerar-documento';
     
     let formCount = 1;
     let addingForm = false;
@@ -319,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.textContent = 'Gerando...';
             
             // Envia um único request com todos os formulários
-            fetch('/gerar-documento', {
+            fetch(submitUrl, {
                 method: 'POST',
                 body: formDataGeral
             })

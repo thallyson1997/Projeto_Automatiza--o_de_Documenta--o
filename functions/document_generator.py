@@ -9,7 +9,7 @@ import tempfile
 import shutil
 
 
-def gerar_documento(unidade, data, legenda, imagens=None):
+def gerar_documento(unidade, data, legenda, imagens=None, modelo_arquivo='modelo.docx'):
     """
     Carrega o modelo.docx, substitui os placeholders e insere as imagens
     e retorna o documento modificado com ajuste de altura.
@@ -25,7 +25,7 @@ def gerar_documento(unidade, data, legenda, imagens=None):
     """
     try:
         # Caminho do modelo
-        modelo_path = os.path.join(os.path.dirname(__file__), '..', 'documento', 'modelo.docx')
+        modelo_path = os.path.join(os.path.dirname(__file__), '..', 'documento', modelo_arquivo)
         
         # Verifica se o arquivo modelo existe
         if not os.path.exists(modelo_path):
@@ -252,7 +252,7 @@ def adicionar_imagem_ao_paragrafo(paragrafo, imagem_bytes, largura_inches):
     paragrafo.add_run().add_picture(imagem_stream, width=Inches(largura_inches))
 
 
-def gerar_documento_multiplo(formularios):
+def gerar_documento_multiplo(formularios, modelo_arquivo='modelo.docx'):
     """
     Gera um único documento com múltiplas páginas, uma para cada formulário.
     Mantém a mesma estrutura e formatação do documento original.
@@ -267,7 +267,7 @@ def gerar_documento_multiplo(formularios):
         import zipfile
         from lxml import etree
         
-        modelo_path = os.path.join(os.path.dirname(__file__), '..', 'documento', 'modelo.docx')
+        modelo_path = os.path.join(os.path.dirname(__file__), '..', 'documento', modelo_arquivo)
         
         if not os.path.exists(modelo_path):
             raise FileNotFoundError(f"Arquivo modelo não encontrado em {modelo_path}")
@@ -281,7 +281,8 @@ def gerar_documento_multiplo(formularios):
                 form_data['unidade'],
                 form_data['data'],
                 form_data['legenda'],
-                form_data['imagens']
+                form_data['imagens'],
+                modelo_arquivo=modelo_arquivo
             )
             
             # Salva em arquivo temporário
