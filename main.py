@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, send_file
 from functions.document_generator import gerar_documento, gerar_documento_multiplo
 from functions.document_generator2 import gerar_documento_modelo2_empresa
 import io
+import re
 
 app = Flask(__name__, template_folder='templates')
 
@@ -132,16 +133,24 @@ def gerar_doc_modelo2():
         if data_inicio_obj > data_fim_obj:
             return {'erro': 'A Data Início não pode ser maior que a Data Fim.'}, 400
 
-        datas_formulario = []
-        form_index = 0
+        indices_formulario = []
+        for key in request.form.keys():
+            match = re.fullmatch(r'data_formulario-(\d+)', key)
+            if match:
+                indices_formulario.append(int(match.group(1)))
 
-        while True:
+        if not indices_formulario:
+            return {'erro': 'Pelo menos um formulário deve existir.'}, 400
+
+        total_formularios = max(indices_formulario) + 1
+        datas_formulario = []
+
+        for form_index in range(total_formularios):
             data_formulario_iso = request.form.get(f'data_formulario-{form_index}', '').strip()
 
             if not data_formulario_iso:
-                if form_index == 0:
-                    return {'erro': 'Pelo menos um formulário deve ser preenchido'}, 400
-                break
+                datas_formulario.append('')
+                continue
 
             try:
                 data_formulario_obj = datetime.strptime(data_formulario_iso, '%Y-%m-%d')
@@ -152,7 +161,6 @@ def gerar_doc_modelo2():
                 return {'erro': f'A data do Formulário {form_index + 1} deve estar entre Data Início e Data Fim.'}, 400
 
             datas_formulario.append(data_formulario_obj.strftime('%d/%m/%Y'))
-            form_index += 1
 
         data_inicio = data_inicio_obj.strftime('%d/%m/%Y')
         data_fim = data_fim_obj.strftime('%d/%m/%Y')
@@ -171,12 +179,26 @@ def gerar_doc_modelo2():
             if imagem_ceia and imagem_ceia.filename:
                 imagem_ceia_bytes = imagem_ceia.read()
 
-            imagens_formularios.append({
+            dados_form = {
                 'imagem_lanche': imagem_lanche_bytes,
                 'imagem_ceia': imagem_ceia_bytes,
                 'legenda_lanche': request.form.get(f'legenda_lanche-{index}', '').strip(),
                 'legenda_ceia': request.form.get(f'legenda_ceia-{index}', '').strip()
-            })
+            }
+            for n in range(1, 5):
+                f_almoco = request.files.get(f'imagem_almoco_{n}-{index}')
+                dados_form[f'imagem_almoco_{n}'] = f_almoco.read() if f_almoco and f_almoco.filename else None
+                dados_form[f'proteina_almoco_{n}'] = request.form.get(f'proteina_almoco_{n}-{index}', '').strip()
+                dados_form[f'peso_almoco_{n}'] = request.form.get(f'peso_almoco_{n}-{index}', '').strip()
+                if n <= 2:
+                    dados_form[f'acompanhamento_almoco_{n}'] = request.form.get(f'acompanhamento_almoco_{n}-{index}', '').strip()
+                f_jantar = request.files.get(f'imagem_jantar_{n}-{index}')
+                dados_form[f'imagem_jantar_{n}'] = f_jantar.read() if f_jantar and f_jantar.filename else None
+                dados_form[f'proteina_jantar_{n}'] = request.form.get(f'proteina_jantar_{n}-{index}', '').strip()
+                dados_form[f'peso_jantar_{n}'] = request.form.get(f'peso_jantar_{n}-{index}', '').strip()
+                if n <= 2:
+                    dados_form[f'acompanhamento_jantar_{n}'] = request.form.get(f'acompanhamento_jantar_{n}-{index}', '').strip()
+            imagens_formularios.append(dados_form)
 
         documento_bytes = gerar_documento_modelo2_empresa(
             empresa,
@@ -208,4 +230,4 @@ def convertar_data(data_iso):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000, debug=False)
+    app.run(host='0.0.0.0', port=10000, debug=True)

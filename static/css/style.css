@@ -165,6 +165,7 @@ body {
 
 .form-group textarea,
 .form-group input[type="file"],
+.form-group input[type="number"],
 .input-date {
     padding: 12px 15px;
     border: 2px solid #e0e0e0;
@@ -201,6 +202,7 @@ body {
 
 .form-group textarea:focus,
 .form-group input[type="file"]:focus,
+.form-group input[type="number"]:focus,
 .input-date:focus {
     outline: none;
     border-color: #667eea;
@@ -209,6 +211,10 @@ body {
 }
 
 .form-group textarea::placeholder {
+    color: #999;
+}
+
+.form-group input[type="number"]::placeholder {
     color: #999;
 }
 

@@ -5,7 +5,7 @@ import shutil
 import io
 from copy import deepcopy
 from docx import Document
-from docx.shared import Cm
+from docx.shared import Cm, Pt
 from docx.document import Document as DocxDocument
 from docx.table import Table, _Cell
 from docx.text.paragraph import Paragraph
@@ -121,10 +121,20 @@ def _aplicar_substituicoes_modelo2(documento_bytes, empresa, data_inicio, data_f
         primeira_ocorrencia_substituida = False
         idx_lanche = 0
         idx_ceia = 0
+        idx_legenda_lanche = 0
+        idx_legenda_ceia = 0
+        idx_almoco = [0, 0, 0, 0]
+        idx_jantar = [0, 0, 0, 0]
+        idx_proteina_almoco = [0, 0, 0, 0]
+        idx_proteina_jantar = [0, 0, 0, 0]
+        idx_peso_almoco = [0, 0, 0, 0]
+        idx_peso_jantar = [0, 0, 0, 0]
+        idx_acompanhamento_almoco = [0, 0]
+        idx_acompanhamento_jantar = [0, 0]
 
         def substituir_texto_paragrafo(paragrafo):
             nonlocal primeira_ocorrencia_substituida
-            nonlocal idx_lanche, idx_ceia
+            nonlocal idx_lanche, idx_ceia, idx_legenda_lanche, idx_legenda_ceia
             texto = paragrafo.text
             if (
                 '[EMPRESA]' not in texto
@@ -132,6 +142,16 @@ def _aplicar_substituicoes_modelo2(documento_bytes, empresa, data_inicio, data_f
                 and '[DATA FIM]' not in texto
                 and '[IMAGEM LANCHE]' not in texto
                 and '[IMAGEM CEIA]' not in texto
+                and '[LEGENDA LANCHE]' not in texto
+                and '[LEGENDA CEIA]' not in texto
+                and not any(f'[IMAGEM ALMOÇO {n}]' in texto for n in range(1, 5))
+                and not any(f'[IMAGEM JANTAR {n}]' in texto for n in range(1, 5))
+                and not any(f'[PROTEINA ALMOÇO {n}]' in texto for n in range(1, 5))
+                and not any(f'[PROTEINA JANTAR {n}]' in texto for n in range(1, 5))
+                and not any(f'[PESO ALMOÇO {n}]' in texto for n in range(1, 5))
+                and not any(f'[PESO JANTAR {n}]' in texto for n in range(1, 5))
+                and not any(f'[ACOMPANHAMENTO ALMOÇO {n}]' in texto for n in range(1, 3))
+                and not any(f'[ACOMPANHAMENTO JANTAR {n}]' in texto for n in range(1, 3))
             ):
                 return
 
@@ -152,6 +172,8 @@ def _aplicar_substituicoes_modelo2(documento_bytes, empresa, data_inicio, data_f
                 if imagem_bytes:
                     for run in paragrafo.runs:
                         run.text = ''
+                    paragrafo.paragraph_format.space_before = Pt(0)
+                    paragrafo.paragraph_format.space_after = Pt(0)
                     stream = io.BytesIO(imagem_bytes)
                     paragrafo.add_run().add_picture(stream, width=Cm(8), height=Cm(5))
                     return
@@ -166,11 +188,107 @@ def _aplicar_substituicoes_modelo2(documento_bytes, empresa, data_inicio, data_f
                 if imagem_bytes:
                     for run in paragrafo.runs:
                         run.text = ''
+                    paragrafo.paragraph_format.space_before = Pt(0)
+                    paragrafo.paragraph_format.space_after = Pt(0)
                     stream = io.BytesIO(imagem_bytes)
                     paragrafo.add_run().add_picture(stream, width=Cm(8), height=Cm(5))
                     return
 
                 texto = texto.replace('[IMAGEM CEIA]', '')
+
+            if '[LEGENDA LANCHE]' in texto:
+                dados = imagens_formularios[idx_legenda_lanche] if idx_legenda_lanche < len(imagens_formularios) else {}
+                legenda = dados.get('legenda_lanche', '')
+                idx_legenda_lanche += 1
+                texto = texto.replace('[LEGENDA LANCHE]', legenda)
+
+            if '[LEGENDA CEIA]' in texto:
+                dados = imagens_formularios[idx_legenda_ceia] if idx_legenda_ceia < len(imagens_formularios) else {}
+                legenda = dados.get('legenda_ceia', '')
+                idx_legenda_ceia += 1
+                texto = texto.replace('[LEGENDA CEIA]', legenda)
+
+            for n in range(1, 5):
+                placeholder_almoco = f'[IMAGEM ALMOÇO {n}]'
+                if placeholder_almoco in texto:
+                    dados = imagens_formularios[idx_almoco[n-1]] if idx_almoco[n-1] < len(imagens_formularios) else {}
+                    imagem_bytes = dados.get(f'imagem_almoco_{n}')
+                    idx_almoco[n-1] += 1
+                    if imagem_bytes:
+                        for run in paragrafo.runs:
+                            run.text = ''
+                        espaco = Pt(6) if n in (3, 4) else Pt(0)
+                        paragrafo.paragraph_format.space_before = espaco
+                        paragrafo.paragraph_format.space_after = espaco
+                        stream = io.BytesIO(imagem_bytes)
+                        paragrafo.add_run().add_picture(stream, width=Cm(8), height=Cm(5))
+                        return
+                    texto = texto.replace(placeholder_almoco, '')
+
+            for n in range(1, 5):
+                placeholder_jantar = f'[IMAGEM JANTAR {n}]'
+                if placeholder_jantar in texto:
+                    dados = imagens_formularios[idx_jantar[n-1]] if idx_jantar[n-1] < len(imagens_formularios) else {}
+                    imagem_bytes = dados.get(f'imagem_jantar_{n}')
+                    idx_jantar[n-1] += 1
+                    if imagem_bytes:
+                        for run in paragrafo.runs:
+                            run.text = ''
+                        espaco = Pt(6) if n in (3, 4) else Pt(0)
+                        paragrafo.paragraph_format.space_before = espaco
+                        paragrafo.paragraph_format.space_after = espaco
+                        stream = io.BytesIO(imagem_bytes)
+                        paragrafo.add_run().add_picture(stream, width=Cm(8), height=Cm(5))
+                        return
+                    texto = texto.replace(placeholder_jantar, '')
+
+            for n in range(1, 5):
+                placeholder_proteina_almoco = f'[PROTEINA ALMOÇO {n}]'
+                if placeholder_proteina_almoco in texto:
+                    dados = imagens_formularios[idx_proteina_almoco[n-1]] if idx_proteina_almoco[n-1] < len(imagens_formularios) else {}
+                    proteina = dados.get(f'proteina_almoco_{n}', '')
+                    idx_proteina_almoco[n-1] += 1
+                    texto = texto.replace(placeholder_proteina_almoco, proteina)
+
+            for n in range(1, 5):
+                placeholder_proteina_jantar = f'[PROTEINA JANTAR {n}]'
+                if placeholder_proteina_jantar in texto:
+                    dados = imagens_formularios[idx_proteina_jantar[n-1]] if idx_proteina_jantar[n-1] < len(imagens_formularios) else {}
+                    proteina = dados.get(f'proteina_jantar_{n}', '')
+                    idx_proteina_jantar[n-1] += 1
+                    texto = texto.replace(placeholder_proteina_jantar, proteina)
+
+            for n in range(1, 5):
+                placeholder_peso_almoco = f'[PESO ALMOÇO {n}]'
+                if placeholder_peso_almoco in texto:
+                    dados = imagens_formularios[idx_peso_almoco[n-1]] if idx_peso_almoco[n-1] < len(imagens_formularios) else {}
+                    peso = dados.get(f'peso_almoco_{n}', '')
+                    idx_peso_almoco[n-1] += 1
+                    texto = texto.replace(placeholder_peso_almoco, peso)
+
+            for n in range(1, 5):
+                placeholder_peso_jantar = f'[PESO JANTAR {n}]'
+                if placeholder_peso_jantar in texto:
+                    dados = imagens_formularios[idx_peso_jantar[n-1]] if idx_peso_jantar[n-1] < len(imagens_formularios) else {}
+                    peso = dados.get(f'peso_jantar_{n}', '')
+                    idx_peso_jantar[n-1] += 1
+                    texto = texto.replace(placeholder_peso_jantar, peso)
+
+            for n in range(1, 3):
+                placeholder_acompanhamento_almoco = f'[ACOMPANHAMENTO ALMOÇO {n}]'
+                if placeholder_acompanhamento_almoco in texto:
+                    dados = imagens_formularios[idx_acompanhamento_almoco[n-1]] if idx_acompanhamento_almoco[n-1] < len(imagens_formularios) else {}
+                    acompanhamento = dados.get(f'acompanhamento_almoco_{n}', '')
+                    idx_acompanhamento_almoco[n-1] += 1
+                    texto = texto.replace(placeholder_acompanhamento_almoco, acompanhamento)
+
+            for n in range(1, 3):
+                placeholder_acompanhamento_jantar = f'[ACOMPANHAMENTO JANTAR {n}]'
+                if placeholder_acompanhamento_jantar in texto:
+                    dados = imagens_formularios[idx_acompanhamento_jantar[n-1]] if idx_acompanhamento_jantar[n-1] < len(imagens_formularios) else {}
+                    acompanhamento = dados.get(f'acompanhamento_jantar_{n}', '')
+                    idx_acompanhamento_jantar[n-1] += 1
+                    texto = texto.replace(placeholder_acompanhamento_jantar, acompanhamento)
 
             for run in paragrafo.runs:
                 run.text = ''

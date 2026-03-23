@@ -27,6 +27,9 @@
             border-radius: 14px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
         }
 
         .image-modal-header {
@@ -52,6 +55,8 @@
 
         .image-modal-content {
             padding: 20px;
+            min-height: 260px;
+            overflow-y: auto;
         }
 
         .image-step-title {
@@ -68,10 +73,109 @@
             margin-top: 16px;
             display: grid;
             gap: 12px;
+            min-height: 130px;
+            align-content: start;
         }
 
         .image-step-fields .form-group {
             margin-bottom: 0;
+        }
+
+        .image-upload-area {
+            margin-top: 8px;
+            border: 2px dashed #d1d5db;
+            border-radius: 10px;
+            background: #f8fafc;
+            min-height: 170px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .image-upload-area:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .image-upload-area:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+        }
+
+        .image-upload-area img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .image-upload-placeholder {
+            color: #6b7280;
+            font-size: 0.95rem;
+            text-align: center;
+            padding: 0 8px;
+        }
+
+        .image-upload-area.has-image {
+            padding: 0;
+            border-style: solid;
+            border-color: #e5e7eb;
+            background: #fff;
+        }
+
+        .image-upload-area.has-image:hover {
+            border-color: #667eea;
+            background: #fff;
+        }
+
+        .image-file-input-hidden {
+            display: none;
+        }
+
+        .image-preview-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-remove-image {
+            background: #ef4444;
+            color: #fff;
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-remove-image:hover {
+            background: #dc2626;
+        }
+
+        .btn-remove-image[hidden] {
+            display: none;
+        }
+
+        .image-step-fields .input-peso {
+            max-width: 220px;
+        }
+
+        .image-step-fields .input-peso::-webkit-outer-spin-button,
+        .image-step-fields .input-peso::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .image-step-fields .input-peso {
+            appearance: textfield;
+            -moz-appearance: textfield;
         }
 
         .image-modal-footer {
@@ -121,7 +225,7 @@
 
                         <div class="form-group">
                             <label for="data_formulario-0">Data:</label>
-                            <input type="date" id="data_formulario-0" name="data_formulario-0" class="input-date" required>
+                            <input type="date" id="data_formulario-0" name="data_formulario-0" class="input-date">
                         </div>
 
                         <div class="form-actions" style="justify-content: flex-start;">
@@ -179,16 +283,16 @@
         const closeImageModal = document.getElementById('closeImageModal');
 
         const imageSteps = [
-            { title: 'LANCHE TARDE', hasLegenda: true },
-            { title: 'CEIA', hasLegenda: true },
-            { title: 'ALMOÇO FOTO 1', hasLegenda: false },
-            { title: 'ALMOÇO FOTO 2', hasLegenda: false },
-            { title: 'ALMOÇO FOTO 3', hasLegenda: false },
-            { title: 'ALMOÇO FOTO 4', hasLegenda: false },
-            { title: 'JANTAR FOTO 1', hasLegenda: false },
-            { title: 'JANTAR FOTO 2', hasLegenda: false },
-            { title: 'JANTAR FOTO 3', hasLegenda: false },
-            { title: 'JANTAR FOTO 4', hasLegenda: false }
+            { title: 'LANCHE TARDE', hasLegenda: true, hasProteina: false, hasPeso: false, hasAcompanhamento: false },
+            { title: 'CEIA', hasLegenda: true, hasProteina: false, hasPeso: false, hasAcompanhamento: false },
+            { title: 'ALMOÇO FOTO 1', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: true },
+            { title: 'ALMOÇO FOTO 2', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: true },
+            { title: 'ALMOÇO FOTO 3', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: false },
+            { title: 'ALMOÇO FOTO 4', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: false },
+            { title: 'JANTAR FOTO 1', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: true },
+            { title: 'JANTAR FOTO 2', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: true },
+            { title: 'JANTAR FOTO 3', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: false },
+            { title: 'JANTAR FOTO 4', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: false }
         ];
 
         let formCount = 1;
@@ -200,7 +304,10 @@
             if (!formMediaData[formNumber]) {
                 formMediaData[formNumber] = imageSteps.map(() => ({
                     file: null,
-                    legenda: ''
+                    legenda: '',
+                    proteina: '',
+                    peso: '',
+                    acompanhamento: ''
                 }));
             }
             return formMediaData[formNumber];
@@ -233,7 +340,10 @@
                 const formNumberAnterior = Number(addImageBtn.dataset.formNumber || (index + 1));
                 novoEstadoMidia[index + 1] = formMediaData[formNumberAnterior] || imageSteps.map(() => ({
                     file: null,
-                    legenda: ''
+                    legenda: '',
+                    proteina: '',
+                    peso: '',
+                    acompanhamento: ''
                 }));
 
                 titulo.textContent = `Formulário ${index + 1}`;
@@ -265,7 +375,7 @@
                 </div>
                 <div class="form-group">
                     <label>Data:</label>
-                    <input type="date" class="input-date" required>
+                    <input type="date" class="input-date">
                 </div>
                 <div class="form-actions" style="justify-content: flex-start;">
                     <button type="button" class="btn btn-secondary btn-add-image">Adicionar imagem</button>
@@ -293,13 +403,24 @@
 
             const inputImagemId = `imagem-form-${activeFormNumber}-step-${currentStepIndex}`;
             const inputLegendaId = `legenda-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputProteinaId = `proteina-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputPesoId = `peso-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputAcompanhamentoId = `acompanhamento-form-${activeFormNumber}-step-${currentStepIndex}`;
             const fileNameId = `imagem-nome-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const uploadAreaId = `imagem-upload-area-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const removeImageBtnId = `remover-imagem-form-${activeFormNumber}-step-${currentStepIndex}`;
 
             let fieldsHtml = `
                 <div class="form-group">
                     <label for="${inputImagemId}">Imagem (${step.title}):</label>
-                    <input type="file" id="${inputImagemId}" accept="image/*">
+                    <input type="file" id="${inputImagemId}" class="image-file-input-hidden" accept="image/*">
+                    <div id="${uploadAreaId}" class="image-upload-area" role="button" tabindex="0" aria-label="Adicionar imagem">
+                        <p class="image-upload-placeholder">Adicionar imagem</p>
+                    </div>
                     <p id="${fileNameId}" class="image-step-hint"></p>
+                    <div class="image-preview-actions">
+                        <button type="button" id="${removeImageBtnId}" class="btn-remove-image" hidden>Remover imagem</button>
+                    </div>
                 </div>
             `;
 
@@ -312,10 +433,74 @@
                 `;
             }
 
+            if (step.hasProteina) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputProteinaId}">Proteina:</label>
+                        <textarea id="${inputProteinaId}" rows="2" placeholder="Digite a proteina (opcional)..."></textarea>
+                    </div>
+                `;
+            }
+
+            if (step.hasPeso) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputPesoId}">Peso:</label>
+                        <input type="number" class="input-peso" id="${inputPesoId}" step="any" min="0" inputmode="decimal" placeholder="Digite o peso (opcional)...">
+                    </div>
+                `;
+            }
+
+            if (step.hasAcompanhamento) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputAcompanhamentoId}">Acompanhamentos:</label>
+                        <textarea id="${inputAcompanhamentoId}" rows="2" placeholder="Digite os acompanhamentos (opcional)..."></textarea>
+                    </div>
+                `;
+            }
+
             imageStepFields.innerHTML = fieldsHtml;
 
             const fileInput = document.getElementById(inputImagemId);
             const fileNameText = document.getElementById(fileNameId);
+            const uploadArea = document.getElementById(uploadAreaId);
+            const removeImageBtn = document.getElementById(removeImageBtnId);
+
+            function renderImagePreview(arquivo) {
+                if (!arquivo || !arquivo.type || !arquivo.type.startsWith('image/')) {
+                    uploadArea.classList.remove('has-image');
+                    uploadArea.innerHTML = '<p class="image-upload-placeholder">Adicionar imagem</p>';
+                    uploadArea.setAttribute('aria-label', 'Adicionar imagem');
+                    fileNameText.textContent = 'Nenhum arquivo selecionado';
+                    removeImageBtn.hidden = true;
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(arquivo);
+                uploadArea.classList.add('has-image');
+                uploadArea.innerHTML = `<img src="${objectUrl}" alt="Pré-visualização da imagem selecionada">`;
+                uploadArea.setAttribute('aria-label', 'Imagem selecionada. Clique para trocar');
+                fileNameText.textContent = `Arquivo selecionado: ${arquivo.name}`;
+                removeImageBtn.hidden = false;
+
+                const img = uploadArea.querySelector('img');
+                img.addEventListener('load', () => {
+                    URL.revokeObjectURL(objectUrl);
+                }, { once: true });
+            }
+
+            function abrirSeletorImagem() {
+                fileInput.click();
+            }
+
+            uploadArea.addEventListener('click', abrirSeletorImagem);
+            uploadArea.addEventListener('keydown', function(evento) {
+                if (evento.key === 'Enter' || evento.key === ' ') {
+                    evento.preventDefault();
+                    abrirSeletorImagem();
+                }
+            });
 
             if (stepData.file) {
                 try {
@@ -325,17 +510,22 @@
                 } catch (error) {
                     // Alguns navegadores bloqueiam reatribuir files; mantemos ao menos o nome visivel.
                 }
-                fileNameText.textContent = `Arquivo selecionado: ${stepData.file.name}`;
+                renderImagePreview(stepData.file);
             } else {
-                fileNameText.textContent = 'Nenhum arquivo selecionado';
+                renderImagePreview(null);
             }
 
             fileInput.addEventListener('change', function() {
                 const arquivo = this.files && this.files.length > 0 ? this.files[0] : null;
                 stepData.file = arquivo;
-                fileNameText.textContent = arquivo
-                    ? `Arquivo selecionado: ${arquivo.name}`
-                    : 'Nenhum arquivo selecionado';
+                renderImagePreview(arquivo);
+            });
+
+            removeImageBtn.addEventListener('click', function() {
+                stepData.file = null;
+                fileInput.value = '';
+                fileNameText.textContent = 'Nenhum arquivo selecionado';
+                renderImagePreview(null);
             });
 
             if (step.hasLegenda) {
@@ -343,6 +533,30 @@
                 legendaInput.value = stepData.legenda || '';
                 legendaInput.addEventListener('input', function() {
                     stepData.legenda = this.value;
+                });
+            }
+
+            if (step.hasProteina) {
+                const proteinaInput = document.getElementById(inputProteinaId);
+                proteinaInput.value = stepData.proteina || '';
+                proteinaInput.addEventListener('input', function() {
+                    stepData.proteina = this.value;
+                });
+            }
+
+            if (step.hasPeso) {
+                const pesoInput = document.getElementById(inputPesoId);
+                pesoInput.value = stepData.peso || '';
+                pesoInput.addEventListener('input', function() {
+                    stepData.peso = this.value;
+                });
+            }
+
+            if (step.hasAcompanhamento) {
+                const acompanhamentoInput = document.getElementById(inputAcompanhamentoId);
+                acompanhamentoInput.value = stepData.acompanhamento || '';
+                acompanhamentoInput.addEventListener('input', function() {
+                    stepData.acompanhamento = this.value;
                 });
             }
 
@@ -462,6 +676,28 @@
 
                 formData.append(`legenda_lanche-${index}`, lancheData.legenda || '');
                 formData.append(`legenda_ceia-${index}`, ceiaData.legenda || '');
+
+                for (let n = 1; n <= 4; n++) {
+                    const almocoData = midia[1 + n] || { file: null };
+                    if (almocoData.file) {
+                        formData.append(`imagem_almoco_${n}-${index}`, almocoData.file);
+                    }
+                    formData.append(`proteina_almoco_${n}-${index}`, almocoData.proteina || '');
+                    formData.append(`peso_almoco_${n}-${index}`, almocoData.peso || '');
+                    if (n <= 2) {
+                        formData.append(`acompanhamento_almoco_${n}-${index}`, almocoData.acompanhamento || '');
+                    }
+
+                    const jantarData = midia[5 + n] || { file: null };
+                    if (jantarData.file) {
+                        formData.append(`imagem_jantar_${n}-${index}`, jantarData.file);
+                    }
+                    formData.append(`proteina_jantar_${n}-${index}`, jantarData.proteina || '');
+                    formData.append(`peso_jantar_${n}-${index}`, jantarData.peso || '');
+                    if (n <= 2) {
+                        formData.append(`acompanhamento_jantar_${n}-${index}`, jantarData.acompanhamento || '');
+                    }
+                }
             });
 
             fetch(form.action, {
