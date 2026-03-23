@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, send_file
 from functions.document_generator import gerar_documento, gerar_documento_multiplo
 from functions.document_generator2 import gerar_documento_modelo2_empresa
+from functions.document_generator3 import gerar_documento_modelo3_alipen
 import io
 import re
 
@@ -23,6 +24,12 @@ def upload():
 def upload2():
     """Rota da página de upload para fiscalização cozinha"""
     return render_template('upload2.html')
+
+
+@app.route('/upload3')
+def upload3():
+    """Rota da página de upload para relatório ALIPEN"""
+    return render_template('upload3.html')
 
 
 @app.route('/gerar-documento', methods=['POST'])
@@ -213,6 +220,82 @@ def gerar_doc_modelo2():
             mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
             as_attachment=True,
             download_name='modelo2.docx'
+        )
+
+    except Exception as e:
+        return {'erro': str(e)}, 500
+
+
+@app.route('/gerar-documento3', methods=['POST'])
+def gerar_doc_modelo3():
+    """Rota para gerar modelo3 (ALIPEN) com 4 campos: café, lanche, almoço, jantar"""
+    try:
+        from datetime import datetime
+
+        indices_formulario = []
+        for key in request.form.keys():
+            match = re.fullmatch(r'data_formulario-(\d+)', key)
+            if match:
+                indices_formulario.append(int(match.group(1)))
+
+        if not indices_formulario:
+            return {'erro': 'Pelo menos um formulário deve existir.'}, 400
+
+        total_formularios = max(indices_formulario) + 1
+        datas_formulario = []
+        unidades_formulario = []
+
+        for form_index in range(total_formularios):
+            data_formulario_iso = request.form.get(f'data_formulario-{form_index}', '').strip()
+            unidade_formulario = request.form.get(f'unidade_formulario-{form_index}', '').strip()
+
+            if not data_formulario_iso:
+                datas_formulario.append('')
+                unidades_formulario.append('')
+                continue
+
+            try:
+                data_formulario_obj = datetime.strptime(data_formulario_iso, '%Y-%m-%d')
+            except Exception:
+                return {'erro': f'Formato da Data do Formulário {form_index + 1} inválido. Use AAAA-MM-DD.'}, 400
+
+            datas_formulario.append(data_formulario_obj.strftime('%d/%m/%Y'))
+            unidades_formulario.append(unidade_formulario)
+
+        imagens_formularios = []
+        for index in range(len(datas_formulario)):
+            imagem_cafe = request.files.get(f'imagem_cafe-{index}')
+            imagem_lanche = request.files.get(f'imagem_lanche-{index}')
+            imagem_almoco = request.files.get(f'imagem_almoco-{index}')
+            imagem_jantar = request.files.get(f'imagem_jantar-{index}')
+
+            dados_form = {
+                'imagem_cafe': imagem_cafe.read() if imagem_cafe and imagem_cafe.filename else None,
+                'legenda_cafe': request.form.get(f'legenda_cafe-{index}', '').strip(),
+                'imagem_lanche': imagem_lanche.read() if imagem_lanche and imagem_lanche.filename else None,
+                'legenda_lanche': request.form.get(f'legenda_lanche-{index}', '').strip(),
+                'imagem_almoco': imagem_almoco.read() if imagem_almoco and imagem_almoco.filename else None,
+                'proteina_almoco': request.form.get(f'proteina_almoco-{index}', '').strip(),
+                'peso_almoco': request.form.get(f'peso_almoco-{index}', '').strip(),
+                'acompanhamento_almoco': request.form.get(f'acompanhamento_almoco-{index}', '').strip(),
+                'imagem_jantar': imagem_jantar.read() if imagem_jantar and imagem_jantar.filename else None,
+                'proteina_jantar': request.form.get(f'proteina_jantar-{index}', '').strip(),
+                'peso_jantar': request.form.get(f'peso_jantar-{index}', '').strip(),
+                'acompanhamento_jantar': request.form.get(f'acompanhamento_jantar-{index}', '').strip()
+            }
+            imagens_formularios.append(dados_form)
+
+        documento_bytes = gerar_documento_modelo3_alipen(
+            datas_formulario,
+            unidades_formulario,
+            imagens_formularios
+        )
+
+        return send_file(
+            io.BytesIO(documento_bytes),
+            mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            as_attachment=True,
+            download_name='modelo3.docx'
         )
 
     except Exception as e:

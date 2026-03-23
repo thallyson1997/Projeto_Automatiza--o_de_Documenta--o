@@ -5,15 +5,91 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Automatização de Documentação</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .welcome-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .welcome-section h1 {
+            font-size: 32px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+
+        .welcome-section > p {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 48px;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        .buttons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            width: 100%;
+            max-width: 1000px;
+            margin-top: 24px;
+        }
+
+        .button-card {
+            display: flex;
+            justify-content: center;
+            padding: 24px 16px;
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .button-card:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+            transform: translateY(-2px);
+        }
+
+        .button-card .btn {
+            width: 100%;
+            text-align: center;
+            font-size: 16px;
+            padding: 12px 24px;
+            margin: 0;
+        }
+
+        .button-card.disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
+            transform: none;
+            box-shadow: none;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="welcome-section">
             <h1>Bem-vindo à Automatização de Documentação</h1>
             <p>Aplicação criada para facilitar a geração de documentos a partir de formulários dinâmicos.</p>
-            <a href="{{ url_for('upload') }}" class="btn btn-primary">Relatório de Viagem</a>
-            <a href="{{ url_for('upload2') }}" class="btn btn-primary">Relatório Fiscalização Cozinha</a>
-            <p style="margin-top: 10px; color: #6b7280; font-size: 14px;">Em construção...</p>
+            
+            <div class="buttons-grid">
+                <a href="{{ url_for('upload') }}" class="button-card">
+                    <button class="btn btn-primary" type="button">Relatório de Viagem</button>
+                </a>
+                <a href="{{ url_for('upload2') }}" class="button-card">
+                    <button class="btn btn-primary" type="button">Relatório Fiscalização Cozinha</button>
+                </a>
+                <a href="#" class="button-card disabled" aria-disabled="true" tabindex="-1">
+                    <button class="btn btn-primary" type="button" disabled>Relatório das Unidades - ALIPEN</button>
+                </a>
+            </div>
         </div>
     </div>
 </body>

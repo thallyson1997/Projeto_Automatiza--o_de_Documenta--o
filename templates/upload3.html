@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload - Relatório das Unidades ALIPEN</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .image-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            padding: 16px;
+        }
+
+        .image-modal-overlay.show {
+            display: flex;
+        }
+
+        .image-modal {
+            width: min(620px, 100%);
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+        }
+
+        .image-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .image-modal-header h3 {
+            margin: 0;
+        }
+
+        .image-modal-close {
+            border: 0;
+            background: transparent;
+            font-size: 24px;
+            line-height: 1;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .image-modal-content {
+            padding: 20px;
+            min-height: 260px;
+            overflow-y: auto;
+        }
+
+        .image-step-title {
+            font-size: 22px;
+            margin: 0 0 10px;
+        }
+
+        .image-step-hint {
+            margin: 0;
+            color: #6b7280;
+        }
+
+        .image-step-fields {
+            margin-top: 16px;
+            display: grid;
+            gap: 12px;
+            min-height: 130px;
+            align-content: start;
+        }
+
+        .image-step-fields .form-group {
+            margin-bottom: 0;
+        }
+
+        .image-upload-area {
+            margin-top: 8px;
+            border: 2px dashed #d1d5db;
+            border-radius: 10px;
+            background: #f8fafc;
+            min-height: 170px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            padding: 8px;
+            cursor: pointer;
+            transition: border-color 0.2s ease, background-color 0.2s ease;
+        }
+
+        .image-upload-area:hover {
+            border-color: #667eea;
+            background: #f5f7ff;
+        }
+
+        .image-upload-area:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+        }
+
+        .image-upload-area img {
+            width: 100%;
+            max-height: 220px;
+            object-fit: contain;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .image-upload-placeholder {
+            color: #6b7280;
+            font-size: 0.95rem;
+            text-align: center;
+            padding: 0 8px;
+        }
+
+        .image-upload-area.has-image {
+            padding: 0;
+            border-style: solid;
+            border-color: #e5e7eb;
+            background: #fff;
+        }
+
+        .image-upload-area.has-image:hover {
+            border-color: #667eea;
+            background: #fff;
+        }
+
+        .image-file-input-hidden {
+            display: none;
+        }
+
+        .image-preview-actions {
+            margin-top: 8px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-remove-image {
+            background: #ef4444;
+            color: #fff;
+            border: 0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+
+        .btn-remove-image:hover {
+            background: #dc2626;
+        }
+
+        .btn-remove-image[hidden] {
+            display: none;
+        }
+
+        .image-step-fields .input-peso {
+            max-width: 220px;
+        }
+
+        .image-step-fields .input-peso::-webkit-outer-spin-button,
+        .image-step-fields .input-peso::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .image-step-fields .input-peso {
+            appearance: textfield;
+            -moz-appearance: textfield;
+        }
+
+        .image-modal-footer {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 16px 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="upload-section">
+            <h1>Relatório das Unidades - ALIPEN</h1>
+
+            <form method="POST" action="{{ url_for('gerar_doc_modelo3') }}" id="upload3Form">
+                <div id="formsContainer">
+                    <div class="form-wrapper" data-form-number="1">
+                        <div class="form-header">
+                            <h3>Formulário 1</h3>
+                            <button type="button" class="btn-remove-form" style="display: none;">×</button>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="unidade_formulario-0">Unidade:</label>
+                            <input type="text" id="unidade_formulario-0" name="unidade_formulario-0" class="input-text" placeholder="Digite a unidade">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="data_formulario-0">Data:</label>
+                            <input type="date" id="data_formulario-0" name="data_formulario-0" class="input-date">
+                        </div>
+
+                        <div class="form-actions" style="justify-content: flex-start;">
+                            <button type="button" class="btn btn-secondary btn-add-image">Adicionar imagem</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Gerar Documento</button>
+                    <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+                </div>
+            </form>
+        </div>
+
+        <button id="floatingBtn" class="floating-btn" title="Adicionar formulário">
+            <span>+</span>
+        </button>
+    </div>
+
+    <div id="imageModalOverlay" class="image-modal-overlay" aria-hidden="true">
+        <div class="image-modal" role="dialog" aria-modal="true" aria-labelledby="imageModalTitle">
+            <div class="image-modal-header">
+                <h3 id="imageModalTitle">Imagens do Formulário 1</h3>
+                <button type="button" class="image-modal-close" id="closeImageModal" aria-label="Fechar">×</button>
+            </div>
+
+            <div class="image-modal-content">
+                <p id="imageStepCounter" class="image-step-hint">Página 1 de 4</p>
+                <h4 id="imageStepTitle" class="image-step-title">CAFÉ</h4>
+                <p class="image-step-hint">Campos opcionais desta etapa.</p>
+                <div id="imageStepFields" class="image-step-fields"></div>
+            </div>
+
+            <div class="image-modal-footer">
+                <button type="button" class="btn btn-secondary" id="imageBackBtn">Voltar</button>
+                <button type="button" class="btn btn-primary" id="imageNextBtn">Continuar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('upload3Form');
+        const formsContainer = document.getElementById('formsContainer');
+        const floatingBtn = document.getElementById('floatingBtn');
+        const imageModalOverlay = document.getElementById('imageModalOverlay');
+        const imageModalTitle = document.getElementById('imageModalTitle');
+        const imageStepCounter = document.getElementById('imageStepCounter');
+        const imageStepTitle = document.getElementById('imageStepTitle');
+        const imageStepFields = document.getElementById('imageStepFields');
+        const imageBackBtn = document.getElementById('imageBackBtn');
+        const imageNextBtn = document.getElementById('imageNextBtn');
+        const closeImageModal = document.getElementById('closeImageModal');
+
+        const imageSteps = [
+            { title: 'CAFÉ', hasLegenda: true, hasProteina: false, hasPeso: false, hasAcompanhamento: false },
+            { title: 'LANCHE', hasLegenda: true, hasProteina: false, hasPeso: false, hasAcompanhamento: false },
+            { title: 'ALMOÇO', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: true },
+            { title: 'JANTAR', hasLegenda: false, hasProteina: true, hasPeso: true, hasAcompanhamento: true }
+        ];
+
+        let formCount = 1;
+        let activeFormNumber = 1;
+        let currentStepIndex = 0;
+        const formMediaData = {};
+
+        function ensureFormMediaData(formNumber) {
+            if (!formMediaData[formNumber]) {
+                formMediaData[formNumber] = imageSteps.map(() => ({
+                    file: null,
+                    legenda: '',
+                    proteina: '',
+                    peso: '',
+                    acompanhamento: ''
+                }));
+            }
+            return formMediaData[formNumber];
+        }
+
+        function getFormDateInputs() {
+            return formsContainer.querySelectorAll('input[name^="data_formulario-"]');
+        }
+
+        function reindexarFormularios() {
+            const wrappers = formsContainer.querySelectorAll('.form-wrapper');
+            const novoEstadoMidia = {};
+
+            wrappers.forEach((wrapper, index) => {
+                const titulo = wrapper.querySelector('.form-header h3');
+                const inputs = wrapper.querySelectorAll('input[type="text"], input[type="date"]');
+                const labels = wrapper.querySelectorAll('label');
+                const removeBtn = wrapper.querySelector('.btn-remove-form');
+                const addImageBtn = wrapper.querySelector('.btn-add-image');
+                const formNumberAnterior = Number(addImageBtn.dataset.formNumber || (index + 1));
+                novoEstadoMidia[index + 1] = formMediaData[formNumberAnterior] || imageSteps.map(() => ({
+                    file: null,
+                    legenda: '',
+                    proteina: '',
+                    peso: '',
+                    acompanhamento: ''
+                }));
+
+                titulo.textContent = `Formulário ${index + 1}`;
+                
+                // Reindexar campo de Unidade
+                inputs[0].id = `unidade_formulario-${index}`;
+                inputs[0].name = `unidade_formulario-${index}`;
+                labels[0].setAttribute('for', inputs[0].id);
+                
+                // Reindexar campo de Data
+                inputs[1].id = `data_formulario-${index}`;
+                inputs[1].name = `data_formulario-${index}`;
+                labels[1].setAttribute('for', inputs[1].id);
+                
+                removeBtn.style.display = wrappers.length > 1 ? 'inline-flex' : 'none';
+                addImageBtn.dataset.formNumber = String(index + 1);
+            });
+
+            Object.keys(formMediaData).forEach(key => {
+                delete formMediaData[key];
+            });
+            Object.keys(novoEstadoMidia).forEach(key => {
+                formMediaData[key] = novoEstadoMidia[key];
+            });
+
+            formCount = wrappers.length;
+        }
+
+        function adicionarFormulario() {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'form-wrapper';
+            wrapper.innerHTML = `
+                <div class="form-header">
+                    <h3>Formulário ${formCount + 1}</h3>
+                    <button type="button" class="btn-remove-form">×</button>
+                </div>
+                <div class="form-group">
+                    <label>Unidade:</label>
+                    <input type="text" class="input-text" placeholder="Digite a unidade">
+                </div>
+                <div class="form-group">
+                    <label>Data:</label>
+                    <input type="date" class="input-date">
+                </div>
+                <div class="form-actions" style="justify-content: flex-start;">
+                    <button type="button" class="btn btn-secondary btn-add-image">Adicionar imagem</button>
+                </div>
+            `;
+
+            const removeBtn = wrapper.querySelector('.btn-remove-form');
+            removeBtn.addEventListener('click', () => {
+                wrapper.remove();
+                reindexarFormularios();
+            });
+
+            formsContainer.appendChild(wrapper);
+            reindexarFormularios();
+        }
+
+        function updateImageModalStep() {
+            const total = imageSteps.length;
+            const step = imageSteps[currentStepIndex];
+            const formData = ensureFormMediaData(activeFormNumber);
+            const stepData = formData[currentStepIndex];
+            imageModalTitle.textContent = `Imagens do Formulário ${activeFormNumber}`;
+            imageStepCounter.textContent = `Página ${currentStepIndex + 1} de ${total}`;
+            imageStepTitle.textContent = step.title;
+
+            const inputImagemId = `imagem-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputLegendaId = `legenda-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputProteinaId = `proteina-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputPesoId = `peso-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const inputAcompanhamentoId = `acompanhamento-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const fileNameId = `imagem-nome-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const uploadAreaId = `imagem-upload-area-form-${activeFormNumber}-step-${currentStepIndex}`;
+            const removeImageBtnId = `remover-imagem-form-${activeFormNumber}-step-${currentStepIndex}`;
+
+            let fieldsHtml = `
+                <div class="form-group">
+                    <label for="${inputImagemId}">Imagem (${step.title}):</label>
+                    <input type="file" id="${inputImagemId}" class="image-file-input-hidden" accept="image/*">
+                    <div id="${uploadAreaId}" class="image-upload-area" role="button" tabindex="0" aria-label="Adicionar imagem">
+                        <p class="image-upload-placeholder">Adicionar imagem</p>
+                    </div>
+                    <p id="${fileNameId}" class="image-step-hint"></p>
+                    <div class="image-preview-actions">
+                        <button type="button" id="${removeImageBtnId}" class="btn-remove-image" hidden>Remover imagem</button>
+                    </div>
+                </div>
+            `;
+
+            if (step.hasLegenda) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputLegendaId}">Legenda:</label>
+                        <textarea id="${inputLegendaId}" rows="2" placeholder="Digite a legenda (opcional)..."></textarea>
+                    </div>
+                `;
+            }
+
+            if (step.hasProteina) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputProteinaId}">Proteina:</label>
+                        <textarea id="${inputProteinaId}" rows="2" placeholder="Digite a proteina (opcional)..."></textarea>
+                    </div>
+                `;
+            }
+
+            if (step.hasPeso) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputPesoId}">Peso:</label>
+                        <input type="number" class="input-peso" id="${inputPesoId}" step="any" min="0" inputmode="decimal" placeholder="Digite o peso (opcional)...">
+                    </div>
+                `;
+            }
+
+            if (step.hasAcompanhamento) {
+                fieldsHtml += `
+                    <div class="form-group">
+                        <label for="${inputAcompanhamentoId}">Acompanhamentos:</label>
+                        <textarea id="${inputAcompanhamentoId}" rows="2" placeholder="Digite os acompanhamentos (opcional)..."></textarea>
+                    </div>
+                `;
+            }
+
+            imageStepFields.innerHTML = fieldsHtml;
+
+            const fileInput = document.getElementById(inputImagemId);
+            const fileNameText = document.getElementById(fileNameId);
+            const uploadArea = document.getElementById(uploadAreaId);
+            const removeImageBtn = document.getElementById(removeImageBtnId);
+
+            function renderImagePreview(arquivo) {
+                if (!arquivo || !arquivo.type || !arquivo.type.startsWith('image/')) {
+                    uploadArea.classList.remove('has-image');
+                    uploadArea.innerHTML = '<p class="image-upload-placeholder">Adicionar imagem</p>';
+                    uploadArea.setAttribute('aria-label', 'Adicionar imagem');
+                    fileNameText.textContent = 'Nenhum arquivo selecionado';
+                    removeImageBtn.hidden = true;
+                    return;
+                }
+
+                const objectUrl = URL.createObjectURL(arquivo);
+                uploadArea.classList.add('has-image');
+                uploadArea.innerHTML = `<img src="${objectUrl}" alt="Pré-visualização da imagem selecionada">`;
+                uploadArea.setAttribute('aria-label', 'Imagem selecionada. Clique para trocar');
+                fileNameText.textContent = `Arquivo selecionado: ${arquivo.name}`;
+                removeImageBtn.hidden = false;
+
+                const img = uploadArea.querySelector('img');
+                img.addEventListener('load', () => {
+                    URL.revokeObjectURL(objectUrl);
+                }, { once: true });
+            }
+
+            function abrirSeletorImagem() {
+                fileInput.click();
+            }
+
+            uploadArea.addEventListener('click', abrirSeletorImagem);
+            uploadArea.addEventListener('keydown', function(evento) {
+                if (evento.key === 'Enter' || evento.key === ' ') {
+                    evento.preventDefault();
+                    abrirSeletorImagem();
+                }
+            });
+
+            if (stepData.file) {
+                try {
+                    const dt = new DataTransfer();
+                    dt.items.add(stepData.file);
+                    fileInput.files = dt.files;
+                } catch (error) {
+                    // Alguns navegadores bloqueiam reatribuir files; mantemos ao menos o nome visivel.
+                }
+                renderImagePreview(stepData.file);
+            } else {
+                renderImagePreview(null);
+            }
+
+            fileInput.addEventListener('change', function() {
+                const arquivo = this.files && this.files.length > 0 ? this.files[0] : null;
+                stepData.file = arquivo;
+                renderImagePreview(arquivo);
+            });
+
+            removeImageBtn.addEventListener('click', function() {
+                stepData.file = null;
+                fileInput.value = '';
+                fileNameText.textContent = 'Nenhum arquivo selecionado';
+                renderImagePreview(null);
+            });
+
+            if (step.hasLegenda) {
+                const legendaInput = document.getElementById(inputLegendaId);
+                legendaInput.value = stepData.legenda || '';
+                legendaInput.addEventListener('input', function() {
+                    stepData.legenda = this.value;
+                });
+            }
+
+            if (step.hasProteina) {
+                const proteinaInput = document.getElementById(inputProteinaId);
+                proteinaInput.value = stepData.proteina || '';
+                proteinaInput.addEventListener('input', function() {
+                    stepData.proteina = this.value;
+                });
+            }
+
+            if (step.hasPeso) {
+                const pesoInput = document.getElementById(inputPesoId);
+                pesoInput.value = stepData.peso || '';
+                pesoInput.addEventListener('input', function() {
+                    stepData.peso = this.value;
+                });
+            }
+
+            if (step.hasAcompanhamento) {
+                const acompanhamentoInput = document.getElementById(inputAcompanhamentoId);
+                acompanhamentoInput.value = stepData.acompanhamento || '';
+                acompanhamentoInput.addEventListener('input', function() {
+                    stepData.acompanhamento = this.value;
+                });
+            }
+
+            imageBackBtn.disabled = currentStepIndex === 0;
+            imageNextBtn.textContent = currentStepIndex === total - 1 ? 'Concluir' : 'Continuar';
+        }
+
+        function openImageModal(formNumber) {
+            activeFormNumber = formNumber;
+            ensureFormMediaData(activeFormNumber);
+            currentStepIndex = 0;
+            updateImageModalStep();
+            imageModalOverlay.classList.add('show');
+            imageModalOverlay.setAttribute('aria-hidden', 'false');
+        }
+
+        function closeModal() {
+            imageModalOverlay.classList.remove('show');
+            imageModalOverlay.setAttribute('aria-hidden', 'true');
+        }
+
+        document.querySelectorAll('.btn-remove-form').forEach(btn => {
+            btn.addEventListener('click', function() {
+                this.closest('.form-wrapper').remove();
+                reindexarFormularios();
+            });
+        });
+
+        floatingBtn.addEventListener('click', function() {
+            adicionarFormulario();
+        });
+
+        formsContainer.addEventListener('click', function(evento) {
+            const btn = evento.target.closest('.btn-add-image');
+            if (!btn) {
+                return;
+            }
+
+            const formNumber = Number(btn.dataset.formNumber || '1');
+            openImageModal(formNumber);
+        });
+
+        imageBackBtn.addEventListener('click', function() {
+            if (currentStepIndex > 0) {
+                currentStepIndex -= 1;
+                updateImageModalStep();
+            }
+        });
+
+        imageNextBtn.addEventListener('click', function() {
+            if (currentStepIndex < imageSteps.length - 1) {
+                currentStepIndex += 1;
+                updateImageModalStep();
+                return;
+            }
+
+            closeModal();
+        });
+
+        closeImageModal.addEventListener('click', closeModal);
+        imageModalOverlay.addEventListener('click', function(evento) {
+            if (evento.target === imageModalOverlay) {
+                closeModal();
+            }
+        });
+
+        form.addEventListener('submit', function(evento) {
+            evento.preventDefault();
+
+            const formData = new FormData(form);
+            const wrappers = formsContainer.querySelectorAll('.form-wrapper');
+
+            wrappers.forEach((wrapper, index) => {
+                const formNumber = index + 1;
+                const midia = formMediaData[formNumber] || [];
+                const cafeData = midia[0] || { file: null, legenda: '' };
+                const lancheData = midia[1] || { file: null, legenda: '' };
+                const almoco = midia[2] || { file: null, proteina: '', acompanhamento: '', peso: '' };
+                const jantar = midia[3] || { file: null, proteina: '', acompanhamento: '', peso: '' };
+
+                if (cafeData.file) {
+                    formData.append(`imagem_cafe-${index}`, cafeData.file);
+                }
+                formData.append(`legenda_cafe-${index}`, cafeData.legenda || '');
+
+                if (lancheData.file) {
+                    formData.append(`imagem_lanche-${index}`, lancheData.file);
+                }
+                formData.append(`legenda_lanche-${index}`, lancheData.legenda || '');
+
+                if (almoco.file) {
+                    formData.append(`imagem_almoco-${index}`, almoco.file);
+                }
+                formData.append(`proteina_almoco-${index}`, almoco.proteina || '');
+                formData.append(`peso_almoco-${index}`, almoco.peso || '');
+                formData.append(`acompanhamento_almoco-${index}`, almoco.acompanhamento || '');
+
+                if (jantar.file) {
+                    formData.append(`imagem_jantar-${index}`, jantar.file);
+                }
+                formData.append(`proteina_jantar-${index}`, jantar.proteina || '');
+                formData.append(`peso_jantar-${index}`, jantar.peso || '');
+                formData.append(`acompanhamento_jantar-${index}`, jantar.acompanhamento || '');
+            });
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.blob();
+                }
+                return response.json().then(data => {
+                    throw new Error(data.erro || 'Erro ao gerar documento');
+                });
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'modelo3.docx';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            })
+            .catch(error => {
+                alert(`Erro ao gerar documento: ${error.message}`);
+            });
+        });
+
+        reindexarFormularios();
+    </script>
+</body>
+</html>
