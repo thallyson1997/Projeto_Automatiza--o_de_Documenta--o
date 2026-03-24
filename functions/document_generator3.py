@@ -145,10 +145,19 @@ def _aplicar_substituicoes_modelo3(documento_bytes, imagens_formularios):
         idx_legenda_lanche = 0
         idx_almoco = 0
         idx_jantar = 0
+        idx_proteina_almoco = 0
+        idx_proteina_jantar = 0
+        idx_peso_almoco = 0
+        idx_peso_jantar = 0
+        idx_acompanhamento_almoco = 0
+        idx_acompanhamento_jantar = 0
 
         def substituir_texto_paragrafo(paragrafo):
             nonlocal idx_cafe, idx_legenda_cafe, idx_lanche, idx_legenda_lanche
             nonlocal idx_almoco, idx_jantar
+            nonlocal idx_proteina_almoco, idx_proteina_jantar
+            nonlocal idx_peso_almoco, idx_peso_jantar
+            nonlocal idx_acompanhamento_almoco, idx_acompanhamento_jantar
             
             texto = paragrafo.text
             if (
@@ -240,33 +249,39 @@ def _aplicar_substituicoes_modelo3(documento_bytes, imagens_formularios):
                 texto = texto.replace('[IMAGEM JANTAR]', '')
 
             if '[PROTEINA ALMOÇO]' in texto:
-                dados = imagens_formularios[idx_almoco] if idx_almoco < len(imagens_formularios) else {}
+                dados = imagens_formularios[idx_proteina_almoco] if idx_proteina_almoco < len(imagens_formularios) else {}
                 proteina = dados.get('proteina_almoco', '')
+                idx_proteina_almoco += 1
                 texto = texto.replace('[PROTEINA ALMOÇO]', proteina)
 
             if '[PROTEINA JANTAR]' in texto:
-                dados = imagens_formularios[idx_jantar] if idx_jantar < len(imagens_formularios) else {}
+                dados = imagens_formularios[idx_proteina_jantar] if idx_proteina_jantar < len(imagens_formularios) else {}
                 proteina = dados.get('proteina_jantar', '')
+                idx_proteina_jantar += 1
                 texto = texto.replace('[PROTEINA JANTAR]', proteina)
 
             if '[PESO ALMOÇO]' in texto:
-                dados = imagens_formularios[idx_almoco] if idx_almoco < len(imagens_formularios) else {}
+                dados = imagens_formularios[idx_peso_almoco] if idx_peso_almoco < len(imagens_formularios) else {}
                 peso = dados.get('peso_almoco', '')
+                idx_peso_almoco += 1
                 texto = texto.replace('[PESO ALMOÇO]', peso)
 
             if '[PESO JANTAR]' in texto:
-                dados = imagens_formularios[idx_jantar] if idx_jantar < len(imagens_formularios) else {}
+                dados = imagens_formularios[idx_peso_jantar] if idx_peso_jantar < len(imagens_formularios) else {}
                 peso = dados.get('peso_jantar', '')
+                idx_peso_jantar += 1
                 texto = texto.replace('[PESO JANTAR]', peso)
 
             if '[ACOMPANHAMENTO ALMOÇO]' in texto:
-                dados = imagens_formularios[idx_almoco] if idx_almoco < len(imagens_formularios) else {}
+                dados = imagens_formularios[idx_acompanhamento_almoco] if idx_acompanhamento_almoco < len(imagens_formularios) else {}
                 acompanhamento = dados.get('acompanhamento_almoco', '')
+                idx_acompanhamento_almoco += 1
                 texto = texto.replace('[ACOMPANHAMENTO ALMOÇO]', acompanhamento)
 
             if '[ACOMPANHAMENTO JANTAR]' in texto:
-                dados = imagens_formularios[idx_jantar] if idx_jantar < len(imagens_formularios) else {}
+                dados = imagens_formularios[idx_acompanhamento_jantar] if idx_acompanhamento_jantar < len(imagens_formularios) else {}
                 acompanhamento = dados.get('acompanhamento_jantar', '')
+                idx_acompanhamento_jantar += 1
                 texto = texto.replace('[ACOMPANHAMENTO JANTAR]', acompanhamento)
 
             for run in paragrafo.runs:
