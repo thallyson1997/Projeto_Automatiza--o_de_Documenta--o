@@ -251,7 +251,7 @@ def gerar_doc_modelo3():
 
             if not data_formulario_iso:
                 datas_formulario.append('')
-                unidades_formulario.append('')
+                unidades_formulario.append(unidade_formulario)
                 continue
 
             try:

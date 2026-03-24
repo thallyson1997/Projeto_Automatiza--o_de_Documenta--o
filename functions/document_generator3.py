@@ -64,6 +64,9 @@ def _montar_estrutura_documento_modelo3(datas_formulario, unidades_formulario):
 
         # Insere secoes repetidas por formulario (SEM CAPA)
         for i, (data_formulario, unidade_formulario) in enumerate(zip(datas_formulario, unidades_formulario)):
+            if i > 0:
+                _inserir_antes_do_sectpr(body, _criar_paragrafo_quebra_pagina())
+
             for elem in template_secao:
                 clone = deepcopy(elem)
                 _replace_in_element_text(clone, '[DATA]', data_formulario)
@@ -339,3 +342,12 @@ def _inserir_antes_do_sectpr(body, elemento):
             body.insert(idx, elemento)
             return
     body.append(elemento)
+
+
+def _criar_paragrafo_quebra_pagina():
+    ns_w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+    p = etree.Element(f'{{{ns_w}}}p')
+    r = etree.SubElement(p, f'{{{ns_w}}}r')
+    br = etree.SubElement(r, f'{{{ns_w}}}br')
+    br.set(f'{{{ns_w}}}type', 'page')
+    return p

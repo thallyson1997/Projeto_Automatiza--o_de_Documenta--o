@@ -203,11 +203,19 @@
                         <div class="form-group">
                             <label for="unidade_formulario-0">Unidade:</label>
                             <input type="text" id="unidade_formulario-0" name="unidade_formulario-0" class="input-text" placeholder="Digite a unidade">
+                            <div class="repeat-checkbox">
+                                <input type="checkbox" id="repeat-unidade-0">
+                                <label for="repeat-unidade-0">Repetir em todos</label>
+                            </div>
                         </div>
 
                         <div class="form-group">
                             <label for="data_formulario-0">Data:</label>
                             <input type="date" id="data_formulario-0" name="data_formulario-0" class="input-date">
+                            <div class="repeat-checkbox">
+                                <input type="checkbox" id="repeat-data-0">
+                                <label for="repeat-data-0">Repetir em todos</label>
+                            </div>
                         </div>
 
                         <div class="form-actions" style="justify-content: flex-start;">
@@ -297,8 +305,10 @@
 
             wrappers.forEach((wrapper, index) => {
                 const titulo = wrapper.querySelector('.form-header h3');
-                const inputs = wrapper.querySelectorAll('input[type="text"], input[type="date"]');
-                const labels = wrapper.querySelectorAll('label');
+                const unidadeInput = wrapper.querySelector('input[name^="unidade_formulario-"]') || wrapper.querySelector('input.input-text');
+                const dataInput = wrapper.querySelector('input[name^="data_formulario-"]') || wrapper.querySelector('input.input-date');
+                const unidadeLabel = wrapper.querySelector('label[for^="unidade_formulario-"]') || wrapper.querySelector('.form-group:nth-of-type(1) > label');
+                const dataLabel = wrapper.querySelector('label[for^="data_formulario-"]') || wrapper.querySelector('.form-group:nth-of-type(2) > label');
                 const removeBtn = wrapper.querySelector('.btn-remove-form');
                 const addImageBtn = wrapper.querySelector('.btn-add-image');
                 const formNumberAnterior = Number(addImageBtn.dataset.formNumber || (index + 1));
@@ -311,16 +321,22 @@
                 }));
 
                 titulo.textContent = `Formulário ${index + 1}`;
-                
-                // Reindexar campo de Unidade
-                inputs[0].id = `unidade_formulario-${index}`;
-                inputs[0].name = `unidade_formulario-${index}`;
-                labels[0].setAttribute('for', inputs[0].id);
-                
-                // Reindexar campo de Data
-                inputs[1].id = `data_formulario-${index}`;
-                inputs[1].name = `data_formulario-${index}`;
-                labels[1].setAttribute('for', inputs[1].id);
+
+                if (unidadeInput) {
+                    unidadeInput.id = `unidade_formulario-${index}`;
+                    unidadeInput.name = `unidade_formulario-${index}`;
+                    if (unidadeLabel) {
+                        unidadeLabel.setAttribute('for', unidadeInput.id);
+                    }
+                }
+
+                if (dataInput) {
+                    dataInput.id = `data_formulario-${index}`;
+                    dataInput.name = `data_formulario-${index}`;
+                    if (dataLabel) {
+                        dataLabel.setAttribute('for', dataInput.id);
+                    }
+                }
                 
                 removeBtn.style.display = wrappers.length > 1 ? 'inline-flex' : 'none';
                 addImageBtn.dataset.formNumber = String(index + 1);
@@ -334,6 +350,119 @@
             });
 
             formCount = wrappers.length;
+            aplicarUIRepeatNoPrimeiroFormulario();
+            setupRepeatCheckboxes();
+        }
+
+        function aplicarUIRepeatNoPrimeiroFormulario() {
+            const wrappers = formsContainer.querySelectorAll('.form-wrapper');
+            if (!wrappers.length) {
+                return;
+            }
+
+            wrappers.forEach((wrapper, index) => {
+                const unidadeGroup = wrapper.querySelector('.form-group:nth-of-type(1)');
+                const dataGroup = wrapper.querySelector('.form-group:nth-of-type(2)');
+
+                if (!unidadeGroup || !dataGroup) {
+                    return;
+                }
+
+                if (index === 0) {
+                    if (!unidadeGroup.querySelector('.repeat-checkbox')) {
+                        unidadeGroup.insertAdjacentHTML('beforeend', `
+                            <div class="repeat-checkbox">
+                                <input type="checkbox" id="repeat-unidade-0">
+                                <label for="repeat-unidade-0">Repetir em todos</label>
+                            </div>
+                        `);
+                    }
+                    if (!dataGroup.querySelector('.repeat-checkbox')) {
+                        dataGroup.insertAdjacentHTML('beforeend', `
+                            <div class="repeat-checkbox">
+                                <input type="checkbox" id="repeat-data-0">
+                                <label for="repeat-data-0">Repetir em todos</label>
+                            </div>
+                        `);
+                    }
+                } else {
+                    const repeatUnidade = unidadeGroup.querySelector('.repeat-checkbox');
+                    const repeatData = dataGroup.querySelector('.repeat-checkbox');
+                    if (repeatUnidade) {
+                        repeatUnidade.remove();
+                    }
+                    if (repeatData) {
+                        repeatData.remove();
+                    }
+                }
+            });
+        }
+
+        function syncUnidade() {
+            const repeatUnidadeCheckbox = document.getElementById('repeat-unidade-0');
+            const unidadeInput = document.getElementById('unidade_formulario-0');
+
+            if (!repeatUnidadeCheckbox || !unidadeInput) {
+                return;
+            }
+
+            const unidadeValue = unidadeInput.value;
+            const otherInputs = formsContainer.querySelectorAll('input[name^="unidade_formulario-"]:not(#unidade_formulario-0)');
+            otherInputs.forEach((input) => {
+                input.value = repeatUnidadeCheckbox.checked ? unidadeValue : '';
+            });
+        }
+
+        function syncData() {
+            const repeatDataCheckbox = document.getElementById('repeat-data-0');
+            const dataInput = document.getElementById('data_formulario-0');
+
+            if (!repeatDataCheckbox || !dataInput) {
+                return;
+            }
+
+            const dataValue = dataInput.value;
+            const otherInputs = formsContainer.querySelectorAll('input[name^="data_formulario-"]:not(#data_formulario-0)');
+            otherInputs.forEach((input) => {
+                input.value = repeatDataCheckbox.checked ? dataValue : '';
+            });
+        }
+
+        function setupRepeatCheckboxes() {
+            const repeatUnidadeCheckbox = document.getElementById('repeat-unidade-0');
+            const repeatDataCheckbox = document.getElementById('repeat-data-0');
+            const unidadeInput = document.getElementById('unidade_formulario-0');
+            const dataInput = document.getElementById('data_formulario-0');
+
+            if (!repeatUnidadeCheckbox || !repeatDataCheckbox || !unidadeInput || !dataInput) {
+                return;
+            }
+
+            repeatUnidadeCheckbox.onchange = syncUnidade;
+            repeatDataCheckbox.onchange = syncData;
+            unidadeInput.oninput = function() {
+                if (repeatUnidadeCheckbox.checked) {
+                    syncUnidade();
+                }
+            };
+            dataInput.onchange = function() {
+                if (repeatDataCheckbox.checked) {
+                    syncData();
+                }
+            };
+        }
+
+        function sincronizarCamposSeNecessario() {
+            const repeatUnidadeCheckbox = document.getElementById('repeat-unidade-0');
+            const repeatDataCheckbox = document.getElementById('repeat-data-0');
+
+            if (repeatUnidadeCheckbox && repeatUnidadeCheckbox.checked) {
+                syncUnidade();
+            }
+
+            if (repeatDataCheckbox && repeatDataCheckbox.checked) {
+                syncData();
+            }
         }
 
         function adicionarFormulario() {
@@ -365,6 +494,7 @@
 
             formsContainer.appendChild(wrapper);
             reindexarFormularios();
+            sincronizarCamposSeNecessario();
         }
 
         function updateImageModalStep() {
