@@ -7,10 +7,10 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body data-submit-url="/gerar-documento">
-    <div class="container">
-        <div class="upload-section">
+    <div class="container preview-container">
+        <!-- Coluna do formulário -->
+        <div class="upload-section form-side">
             <h1>Relatório de Viagem</h1>
-            
             <!-- Contêiner para múltiplos formulários -->
             <div id="formsContainer">
                 <div class="form-wrapper" data-form-number="1">
@@ -28,7 +28,6 @@
                                     <label for="repeat-unidade-0">Repetir em todos</label>
                                 </div>
                             </div>
-
                             <div class="form-group">
                                 <label for="data-0">Data:</label>
                                 <input type="date" id="data-0" name="data" class="input-date" required>
@@ -38,18 +37,15 @@
                                 </div>
                             </div>
                         </div>
-
                         <div class="form-group">
                             <label for="legenda-0">Legenda:</label>
                             <textarea id="legenda-0" name="legenda" placeholder="Digite aqui a legenda da documentação..." rows="3" required></textarea>
                         </div>
-
                         <div class="form-group">
                             <label for="imagens-0">Imagens (até 4):</label>
                             <input type="file" id="imagens-0" name="imagens" accept="image/*" multiple required>
                             <p class="form-hint">Selecione até 4 imagens. Formatos aceitos: JPG, PNG, GIF, WebP</p>
                         </div>
-
                         <!-- Pré-visualização de imagens -->
                         <div class="image-preview-container" style="display: none;">
                             <label>Imagens Carregadas:</label>
@@ -58,13 +54,19 @@
                     </form>
                 </div>
             </div>
-
             <div class="form-actions">
+                <button type="button" class="btn btn-primary" id="previewBtn">Pré-visualizar</button>
                 <button type="submit" class="btn btn-primary" id="submitBtn">Gerar Documento</button>
                 <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
             </div>
         </div>
-        
+        <!-- Coluna da pré-visualização -->
+        <div class="preview-section">
+            <h2>Pré-visualização</h2>
+            <div id="previewArea" class="preview-area">
+                <div class="preview-placeholder">Preencha o formulário e clique em "Pré-visualizar" para ver o resultado aqui.</div>
+            </div>
+        </div>
         <!-- Botão flutuante -->
         <button id="floatingBtn" class="floating-btn" title="Adicionar formulário">
             <span>+</span>

@@ -3,7 +3,65 @@ document.addEventListener('DOMContentLoaded', function() {
     const floatingBtn = document.getElementById('floatingBtn');
     const formsContainer = document.getElementById('formsContainer');
     const submitBtn = document.getElementById('submitBtn');
+    const previewBtn = document.getElementById('previewBtn');
     const submitUrl = document.body.dataset.submitUrl || '/gerar-documento';
+    const previewArea = document.getElementById('previewArea');
+    const previewUrl = '/preview-documento';
+    const previewPdfUrl = '/preview-documento-pdf';
+    
+    // Monta FormData com todos os formularios, incluindo imagens.
+    function buildFormsFormData() {
+        const forms = document.querySelectorAll('.document-form');
+        const formDataGeral = new FormData();
+
+        forms.forEach((form, index) => {
+            const unidade = form.querySelector('textarea[name="unidade"]').value;
+            const data = form.querySelector('input[name="data"]').value;
+            const legenda = form.querySelector('textarea[name="legenda"]').value;
+            const imagensInput = form.querySelector('input[name="imagens"]');
+
+            formDataGeral.append(`unidade-${index}`, unidade);
+            formDataGeral.append(`data-${index}`, data);
+            formDataGeral.append(`legenda-${index}`, legenda);
+
+            if (imagensInput && imagensInput.files) {
+                for (let i = 0; i < imagensInput.files.length; i++) {
+                    formDataGeral.append(`imagens-${index}`, imagensInput.files[i]);
+                }
+            }
+        });
+
+        return formDataGeral;
+    }
+
+        // Pré-visualização PDF
+        if (previewBtn && previewArea) {
+            previewBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const formDataPreview = buildFormsFormData();
+                previewBtn.disabled = true;
+                previewBtn.textContent = 'Pré-visualizando...';
+                fetch(previewPdfUrl, {
+                    method: 'POST',
+                    body: formDataPreview
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.pdf_url) {
+                        previewArea.innerHTML = `<iframe src="${data.pdf_url}#toolbar=0" style="width:100%;height:500px;border:none;"></iframe>`;
+                    } else {
+                        previewArea.innerHTML = `<div class="preview-placeholder">${data.erro || 'Erro ao gerar PDF.'}</div>`;
+                    }
+                    previewBtn.disabled = false;
+                    previewBtn.textContent = 'Pré-visualizar';
+                })
+                .catch(error => {
+                    previewArea.innerHTML = '<div class="preview-placeholder">Erro ao gerar pré-visualização PDF.</div>';
+                    previewBtn.disabled = false;
+                    previewBtn.textContent = 'Pré-visualizar';
+                });
+            });
+        }
     
     let formCount = 1;
     let addingForm = false;
@@ -125,50 +183,94 @@ document.addEventListener('DOMContentLoaded', function() {
         const imagensInput = formWrapper.querySelector('input[name="imagens"]');
         const previewContainer = formWrapper.querySelector('.image-preview-container');
         const imageGrid = previewContainer.querySelector('.image-grid');
+        let currentFiles = [];
+        let draggedIndex = null;
         
         if (!imagensInput) return;
+
+        function syncInputFiles() {
+            const dt = new DataTransfer();
+            currentFiles.forEach(file => dt.items.add(file));
+            imagensInput.files = dt.files;
+        }
+
+        function renderImageGrid() {
+            imageGrid.innerHTML = '';
+
+            if (currentFiles.length === 0) {
+                previewContainer.style.display = 'none';
+                return;
+            }
+
+            currentFiles.forEach((file, index) => {
+                const reader = new FileReader();
+
+                reader.onload = function(event) {
+                    const preview = document.createElement('div');
+                    preview.className = 'image-preview';
+                    preview.setAttribute('draggable', 'true');
+                    preview.dataset.index = index;
+                    preview.innerHTML = `
+                        <img src="${event.target.result}" alt="Prévia ${index + 1}">
+                        <button type="button" class="image-preview-remove" data-index="${index}">×</button>
+                    `;
+
+                    preview.addEventListener('dragstart', function() {
+                        draggedIndex = parseInt(this.dataset.index, 10);
+                        this.classList.add('dragging');
+                    });
+
+                    preview.addEventListener('dragend', function() {
+                        this.classList.remove('dragging');
+                        draggedIndex = null;
+                    });
+
+                    preview.addEventListener('dragover', function(e) {
+                        e.preventDefault();
+                    });
+
+                    preview.addEventListener('drop', function(e) {
+                        e.preventDefault();
+
+                        const targetIndex = parseInt(this.dataset.index, 10);
+                        if (draggedIndex === null || draggedIndex === targetIndex) {
+                            return;
+                        }
+
+                        const movedFile = currentFiles[draggedIndex];
+                        currentFiles.splice(draggedIndex, 1);
+                        currentFiles.splice(targetIndex, 0, movedFile);
+
+                        syncInputFiles();
+                        renderImageGrid();
+                    });
+
+                    imageGrid.appendChild(preview);
+
+                    preview.querySelector('.image-preview-remove').addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const removeIndex = parseInt(this.dataset.index, 10);
+                        currentFiles.splice(removeIndex, 1);
+                        syncInputFiles();
+                        renderImageGrid();
+                    });
+                };
+
+                reader.readAsDataURL(file);
+            });
+
+            previewContainer.style.display = 'block';
+        }
         
         imagensInput.addEventListener('change', function(e) {
-            const files = Array.from(this.files).slice(0, 4);
-            
-            if (files.length > 0) {
-                imageGrid.innerHTML = '';
-                
-                files.forEach((file, index) => {
-                    const reader = new FileReader();
-                    
-                    reader.onload = function(event) {
-                        const preview = document.createElement('div');
-                        preview.className = 'image-preview';
-                        preview.innerHTML = `
-                            <img src="${event.target.result}" alt="Prévia ${index + 1}">
-                            <button type="button" class="image-preview-remove" data-index="${index}">×</button>
-                        `;
-                        
-                        imageGrid.appendChild(preview);
-                        
-                        preview.querySelector('.image-preview-remove').addEventListener('click', function(e) {
-                            e.preventDefault();
-                            const dt = new DataTransfer();
-                            
-                            for (let i = 0; i < imagensInput.files.length; i++) {
-                                if (i !== parseInt(this.dataset.index)) {
-                                    dt.items.add(imagensInput.files[i]);
-                                }
-                            }
-                            
-                            imagensInput.files = dt.files;
-                            imagensInput.dispatchEvent(new Event('change'));
-                        });
-                    };
-                    
-                    reader.readAsDataURL(file);
-                });
-                
-                previewContainer.style.display = 'block';
-            } else {
-                previewContainer.style.display = 'none';
-                imageGrid.innerHTML = '';
+            currentFiles = Array.from(this.files).slice(0, 4);
+
+            // Mantem o input sincronizado com o limite de 4 imagens.
+            syncInputFiles();
+            renderImageGrid();
+
+            if (this.files.length > 4) {
+                showToast('Foram consideradas apenas as 4 primeiras imagens.', 'info');
             }
         });
     }
@@ -295,26 +397,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             // Cria FormData com todos os formulários
-            const formDataGeral = new FormData();
-            
-            forms.forEach((form, index) => {
-                const unidade = form.querySelector(`textarea[name="unidade"]`).value;
-                const data = form.querySelector(`input[name="data"]`).value;
-                const legenda = form.querySelector(`textarea[name="legenda"]`).value;
-                const imagensInput = form.querySelector(`input[name="imagens"]`);
-                
-                // Adiciona os campos ao FormData com índice
-                formDataGeral.append(`unidade-${index}`, unidade);
-                formDataGeral.append(`data-${index}`, data);
-                formDataGeral.append(`legenda-${index}`, legenda);
-                
-                // Adiciona as imagens
-                if (imagensInput.files) {
-                    for (let i = 0; i < imagensInput.files.length; i++) {
-                        formDataGeral.append(`imagens-${index}`, imagensInput.files[i]);
-                    }
-                }
-            });
+            const formDataGeral = buildFormsFormData();
             
             submitBtn.disabled = true;
             submitBtn.textContent = 'Gerando...';

@@ -1,11 +1,150 @@
-from flask import Flask, render_template, request, send_file
+from flask import Flask, render_template, request, send_file, jsonify
 from functions.document_generator import gerar_documento, gerar_documento_multiplo
 from functions.document_generator2 import gerar_documento_modelo2_empresa
 from functions.document_generator3 import gerar_documento_modelo3_alipen
+from docx2pdf import convert
 import io
 import re
+import tempfile
+import os
+import platform
 
 app = Flask(__name__, template_folder='templates')
+
+# Rota para pré-visualização em PDF do documento
+@app.route('/preview-documento-pdf', methods=['POST'])
+def preview_documento_pdf():
+    """Gera um PDF temporário do documento preenchido e retorna uma URL para visualização"""
+    try:
+        com_initialized = False
+        if platform.system() == 'Windows':
+            import pythoncom
+            pythoncom.CoInitialize()
+            com_initialized = True
+
+        formularios_preview = []
+
+        if request.is_json:
+            data = request.get_json() or {}
+            formularios_input = data.get('formularios', [])
+
+            for form in formularios_input:
+                unidade = (form.get('unidade') or '').strip() or '[UNIDADE]'
+                data_input = (form.get('data') or '').strip()
+                data_str = convertar_data(data_input) if data_input else '[DATA]'
+                legenda = (form.get('legenda') or '').strip() or '[LEGENDA]'
+
+                formularios_preview.append({
+                    'unidade': unidade,
+                    'data': data_str,
+                    'legenda': legenda,
+                    'imagens': []
+                })
+        else:
+            indices = set()
+
+            for key in request.form.keys():
+                match = re.match(r'^(unidade|data|legenda)-(\d+)$', key)
+                if match:
+                    indices.add(int(match.group(2)))
+
+            for key in request.files.keys():
+                match = re.match(r'^imagens-(\d+)$', key)
+                if match:
+                    indices.add(int(match.group(1)))
+
+            for idx in sorted(indices):
+                unidade = (request.form.get(f'unidade-{idx}', '') or '').strip() or '[UNIDADE]'
+                data_input = (request.form.get(f'data-{idx}', '') or '').strip()
+                data_str = convertar_data(data_input) if data_input else '[DATA]'
+                legenda = (request.form.get(f'legenda-{idx}', '') or '').strip() or '[LEGENDA]'
+
+                imagens = []
+                arquivos = request.files.getlist(f'imagens-{idx}')
+                for arquivo in arquivos[:4]:
+                    if arquivo and arquivo.filename:
+                        arquivo.seek(0)
+                        conteudo = arquivo.read()
+                        if conteudo:
+                            imagens.append(conteudo)
+
+                formularios_preview.append({
+                    'unidade': unidade,
+                    'data': data_str,
+                    'legenda': legenda,
+                    'imagens': imagens
+                })
+
+        if not formularios_preview:
+            formularios_preview = [{
+                'unidade': '[UNIDADE]',
+                'data': '[DATA]',
+                'legenda': '[LEGENDA]',
+                'imagens': []
+            }]
+
+        # Gera DOCX de 1 ou varias paginas conforme quantidade de formularios.
+        if len(formularios_preview) == 1:
+            form = formularios_preview[0]
+            docx_bytes = gerar_documento(form['unidade'], form['data'], form['legenda'], form['imagens'])
+        else:
+            docx_bytes = gerar_documento_multiplo(formularios_preview)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_docx:
+            tmp_docx.write(docx_bytes)
+            tmp_docx_path = tmp_docx.name
+
+        # Gerar PDF temporário
+        tmp_pdf_path = tmp_docx_path.replace('.docx', '.pdf')
+        convert(tmp_docx_path, tmp_pdf_path)
+
+        # Guardar caminho para servir depois
+        filename = os.path.basename(tmp_pdf_path)
+        # Salva em pasta temporária pública
+        static_tmp_dir = os.path.join('static', 'tmp')
+        os.makedirs(static_tmp_dir, exist_ok=True)
+        final_pdf_path = os.path.join(static_tmp_dir, filename)
+        os.replace(tmp_pdf_path, final_pdf_path)
+        os.unlink(tmp_docx_path)
+
+        # Retorna URL para o PDF
+        url = f'/static/tmp/{filename}'
+        return jsonify({'pdf_url': url})
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao gerar PDF: {str(e)}'}), 500
+    finally:
+        if platform.system() == 'Windows':
+            try:
+                if com_initialized:
+                    pythoncom.CoUninitialize()
+            except Exception:
+                pass
+
+
+
+# Rota para pré-visualização do documento
+@app.route('/preview-documento', methods=['POST'])
+def preview_documento():
+    """Gera uma pré-visualização HTML do documento com os dados enviados"""
+    try:
+        data = request.get_json()
+        formularios = data.get('formularios', [])
+        if not formularios:
+            # Modelo vazio
+            unidade = '[UNIDADE]'
+            data_str = '[DATA]'
+            legenda = '[LEGENDA]'
+            html = render_template('preview_modelo.html', unidade=unidade, data=data_str, legenda=legenda)
+            return html
+        # Só mostra o primeiro formulário para preview
+        form = formularios[0]
+        unidade = form.get('unidade') or '[UNIDADE]'
+        data_input = (form.get('data') or '').strip()
+        data_str = convertar_data(data_input) if data_input else '[DATA]'
+        legenda = form.get('legenda') or '[LEGENDA]'
+        html = render_template('preview_modelo.html', unidade=unidade, data=data_str, legenda=legenda)
+        return html
+    except Exception as e:
+        return f'<div class="preview-placeholder">Erro ao gerar pré-visualização: {str(e)}</div>'
 
 
 @app.route('/')
