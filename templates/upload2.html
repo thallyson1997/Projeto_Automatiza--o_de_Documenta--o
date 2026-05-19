@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload de Fiscalização Cozinha</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.6/dist/docx-preview.js"></script>
     <style>
         .image-modal-overlay {
             position: fixed;
@@ -188,8 +190,8 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="upload-section">
+    <div class="container preview-container">
+        <div class="upload-section form-side">
             <h1>Relatório Fiscalização Cozinha</h1>
 
             <form method="POST" action="{{ url_for('gerar_doc_modelo2') }}" id="upload2Form">
@@ -235,10 +237,19 @@
                 </div>
 
                 <div class="form-actions">
+                    <button type="button" class="btn btn-primary" id="previewBtn2">Pré-visualizar</button>
                     <button type="submit" class="btn btn-primary">Gerar Documento</button>
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
                 </div>
             </form>
+        </div>
+
+        <!-- Coluna da pré-visualização -->
+        <div class="preview-section">
+            <h2>Pré-visualização</h2>
+            <div id="previewArea2" class="preview-area">
+                <div class="preview-placeholder">Preencha o formulário e clique em "Pré-visualizar" para ver o resultado aqui.</div>
+            </div>
         </div>
 
         <button id="floatingBtn" class="floating-btn" title="Adicionar formulário">
@@ -729,6 +740,70 @@
 
         atualizarLimitesDataFormulario();
         reindexarFormularios();
+
+        // Pré-visualização DOCX
+        const previewBtn2 = document.getElementById('previewBtn2');
+        const previewArea2 = document.getElementById('previewArea2');
+
+        previewBtn2.addEventListener('click', function() {
+            const previewFormData = new FormData(form);
+            const wrappers = formsContainer.querySelectorAll('.form-wrapper');
+
+            wrappers.forEach((wrapper, index) => {
+                const formNumber = index + 1;
+                const midia = formMediaData[formNumber] || [];
+                const lancheData = midia[0] || { file: null, legenda: '' };
+                const ceiaData = midia[1] || { file: null, legenda: '' };
+
+                if (lancheData.file) previewFormData.append(`imagem_lanche-${index}`, lancheData.file);
+                if (ceiaData.file) previewFormData.append(`imagem_ceia-${index}`, ceiaData.file);
+                previewFormData.append(`legenda_lanche-${index}`, lancheData.legenda || '');
+                previewFormData.append(`legenda_ceia-${index}`, ceiaData.legenda || '');
+
+                for (let n = 1; n <= 4; n++) {
+                    const almocoData = midia[1 + n] || { file: null };
+                    if (almocoData.file) previewFormData.append(`imagem_almoco_${n}-${index}`, almocoData.file);
+                    previewFormData.append(`proteina_almoco_${n}-${index}`, almocoData.proteina || '');
+                    previewFormData.append(`peso_almoco_${n}-${index}`, almocoData.peso || '');
+                    if (n <= 2) previewFormData.append(`acompanhamento_almoco_${n}-${index}`, almocoData.acompanhamento || '');
+
+                    const jantarData = midia[5 + n] || { file: null };
+                    if (jantarData.file) previewFormData.append(`imagem_jantar_${n}-${index}`, jantarData.file);
+                    previewFormData.append(`proteina_jantar_${n}-${index}`, jantarData.proteina || '');
+                    previewFormData.append(`peso_jantar_${n}-${index}`, jantarData.peso || '');
+                    if (n <= 2) previewFormData.append(`acompanhamento_jantar_${n}-${index}`, jantarData.acompanhamento || '');
+                }
+            });
+
+            previewBtn2.disabled = true;
+            previewBtn2.textContent = 'Pré-visualizando...';
+            previewArea2.innerHTML = '<div class="preview-placeholder">Gerando pré-visualização...</div>';
+
+            fetch('/preview-documento-pdf-modelo2', {
+                method: 'POST',
+                body: previewFormData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.docx_b64) {
+                    const bytes = Uint8Array.from(atob(data.docx_b64), c => c.charCodeAt(0));
+                    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                    previewArea2.innerHTML = '';
+                    docx.renderAsync(blob, previewArea2).catch(() => {
+                        previewArea2.innerHTML = '<div class="preview-placeholder">Erro ao renderizar pré-visualização.</div>';
+                    });
+                } else {
+                    previewArea2.innerHTML = `<div class="preview-placeholder">${data.erro || 'Erro ao gerar pré-visualização.'}</div>`;
+                }
+                previewBtn2.disabled = false;
+                previewBtn2.textContent = 'Pré-visualizar';
+            })
+            .catch(() => {
+                previewArea2.innerHTML = '<div class="preview-placeholder">Erro ao gerar pré-visualização.</div>';
+                previewBtn2.disabled = false;
+                previewBtn2.textContent = 'Pré-visualizar';
+            });
+        });
     </script>
 </body>
 </html>

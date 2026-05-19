@@ -2,26 +2,18 @@ from flask import Flask, render_template, request, send_file, jsonify
 from functions.document_generator import gerar_documento, gerar_documento_multiplo
 from functions.document_generator2 import gerar_documento_modelo2_empresa
 from functions.document_generator3 import gerar_documento_modelo3_alipen
-from docx2pdf import convert
+import base64
 import io
 import re
-import tempfile
 import os
-import platform
 
 app = Flask(__name__, template_folder='templates')
 
 # Rota para pré-visualização em PDF do documento
 @app.route('/preview-documento-pdf', methods=['POST'])
 def preview_documento_pdf():
-    """Gera um PDF temporário do documento preenchido e retorna uma URL para visualização"""
+    """Gera o DOCX preenchido e retorna como base64 para renderização no browser"""
     try:
-        com_initialized = False
-        if platform.system() == 'Windows':
-            import pythoncom
-            pythoncom.CoInitialize()
-            com_initialized = True
-
         formularios_preview = []
 
         if request.is_json:
@@ -89,35 +81,12 @@ def preview_documento_pdf():
             docx_bytes = gerar_documento(form['unidade'], form['data'], form['legenda'], form['imagens'])
         else:
             docx_bytes = gerar_documento_multiplo(formularios_preview)
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_docx:
-            tmp_docx.write(docx_bytes)
-            tmp_docx_path = tmp_docx.name
 
-        # Gerar PDF temporário
-        tmp_pdf_path = tmp_docx_path.replace('.docx', '.pdf')
-        convert(tmp_docx_path, tmp_pdf_path)
-
-        # Guardar caminho para servir depois
-        filename = os.path.basename(tmp_pdf_path)
-        # Salva em pasta temporária pública
-        static_tmp_dir = os.path.join('static', 'tmp')
-        os.makedirs(static_tmp_dir, exist_ok=True)
-        final_pdf_path = os.path.join(static_tmp_dir, filename)
-        os.replace(tmp_pdf_path, final_pdf_path)
-        os.unlink(tmp_docx_path)
-
-        # Retorna URL para o PDF
-        url = f'/static/tmp/{filename}'
-        return jsonify({'pdf_url': url})
+        # Retorna o DOCX como base64 para o browser renderizar com docx-preview.js
+        docx_b64 = base64.b64encode(docx_bytes).decode('utf-8')
+        return jsonify({'docx_b64': docx_b64})
     except Exception as e:
-        return jsonify({'erro': f'Erro ao gerar PDF: {str(e)}'}), 500
-    finally:
-        if platform.system() == 'Windows':
-            try:
-                if com_initialized:
-                    pythoncom.CoUninitialize()
-            except Exception:
-                pass
+        return jsonify({'erro': f'Erro ao gerar pré-visualização: {str(e)}'}), 500
 
 
 
@@ -145,6 +114,85 @@ def preview_documento():
         return html
     except Exception as e:
         return f'<div class="preview-placeholder">Erro ao gerar pré-visualização: {str(e)}</div>'
+
+
+@app.route('/preview-documento-pdf-modelo2', methods=['POST'])
+def preview_documento_pdf_modelo2():
+    """Gera o DOCX modelo2 preenchido e retorna como base64 para renderização no browser"""
+    try:
+        from datetime import datetime
+
+        empresa = request.form.get('empresa', '').strip() or '[EMPRESA]'
+
+        data_inicio_iso = request.form.get('data_inicio', '').strip()
+        data_fim_iso = request.form.get('data_fim', '').strip()
+
+        try:
+            data_inicio_obj = datetime.strptime(data_inicio_iso, '%Y-%m-%d')
+            data_fim_obj = datetime.strptime(data_fim_iso, '%Y-%m-%d')
+            data_inicio = data_inicio_obj.strftime('%d/%m/%Y')
+            data_fim = data_fim_obj.strftime('%d/%m/%Y')
+        except Exception:
+            data_inicio = '[DATA_INICIO]'
+            data_fim = '[DATA_FIM]'
+
+        indices_formulario = []
+        for key in request.form.keys():
+            match = re.fullmatch(r'data_formulario-(\d+)', key)
+            if match:
+                indices_formulario.append(int(match.group(1)))
+
+        if not indices_formulario:
+            indices_formulario = [0]
+
+        total_formularios = max(indices_formulario) + 1
+        datas_formulario = []
+
+        for form_index in range(total_formularios):
+            data_formulario_iso = request.form.get(f'data_formulario-{form_index}', '').strip()
+            if data_formulario_iso:
+                try:
+                    data_formulario_obj = datetime.strptime(data_formulario_iso, '%Y-%m-%d')
+                    datas_formulario.append(data_formulario_obj.strftime('%d/%m/%Y'))
+                except Exception:
+                    datas_formulario.append('')
+            else:
+                datas_formulario.append('')
+
+        imagens_formularios = []
+        for index in range(len(datas_formulario)):
+            imagem_lanche = request.files.get(f'imagem_lanche-{index}')
+            imagem_ceia = request.files.get(f'imagem_ceia-{index}')
+
+            dados_form = {
+                'imagem_lanche': imagem_lanche.read() if imagem_lanche and imagem_lanche.filename else None,
+                'imagem_ceia': imagem_ceia.read() if imagem_ceia and imagem_ceia.filename else None,
+                'legenda_lanche': request.form.get(f'legenda_lanche-{index}', '').strip(),
+                'legenda_ceia': request.form.get(f'legenda_ceia-{index}', '').strip()
+            }
+            for n in range(1, 5):
+                f_almoco = request.files.get(f'imagem_almoco_{n}-{index}')
+                dados_form[f'imagem_almoco_{n}'] = f_almoco.read() if f_almoco and f_almoco.filename else None
+                dados_form[f'proteina_almoco_{n}'] = request.form.get(f'proteina_almoco_{n}-{index}', '').strip()
+                dados_form[f'peso_almoco_{n}'] = request.form.get(f'peso_almoco_{n}-{index}', '').strip()
+                if n <= 2:
+                    dados_form[f'acompanhamento_almoco_{n}'] = request.form.get(f'acompanhamento_almoco_{n}-{index}', '').strip()
+                f_jantar = request.files.get(f'imagem_jantar_{n}-{index}')
+                dados_form[f'imagem_jantar_{n}'] = f_jantar.read() if f_jantar and f_jantar.filename else None
+                dados_form[f'proteina_jantar_{n}'] = request.form.get(f'proteina_jantar_{n}-{index}', '').strip()
+                dados_form[f'peso_jantar_{n}'] = request.form.get(f'peso_jantar_{n}-{index}', '').strip()
+                if n <= 2:
+                    dados_form[f'acompanhamento_jantar_{n}'] = request.form.get(f'acompanhamento_jantar_{n}-{index}', '').strip()
+            imagens_formularios.append(dados_form)
+
+        documento_bytes = gerar_documento_modelo2_empresa(
+            empresa, data_inicio, data_fim, datas_formulario, imagens_formularios
+        )
+
+        docx_b64 = base64.b64encode(documento_bytes).decode('utf-8')
+        return jsonify({'docx_b64': docx_b64})
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao gerar pré-visualização: {str(e)}'}), 500
 
 
 @app.route('/')

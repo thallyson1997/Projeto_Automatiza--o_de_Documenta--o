@@ -47,10 +47,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.pdf_url) {
-                        previewArea.innerHTML = `<iframe src="${data.pdf_url}#toolbar=0" style="width:100%;height:500px;border:none;"></iframe>`;
+                    if (data.docx_b64) {
+                        const bytes = Uint8Array.from(atob(data.docx_b64), c => c.charCodeAt(0));
+                        const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                        previewArea.innerHTML = '';
+                        docx.renderAsync(blob, previewArea).catch(() => {
+                            previewArea.innerHTML = '<div class="preview-placeholder">Erro ao renderizar pré-visualização.</div>';
+                        });
                     } else {
-                        previewArea.innerHTML = `<div class="preview-placeholder">${data.erro || 'Erro ao gerar PDF.'}</div>`;
+                        previewArea.innerHTML = `<div class="preview-placeholder">${data.erro || 'Erro ao gerar pré-visualização.'}</div>`;
                     }
                     previewBtn.disabled = false;
                     previewBtn.textContent = 'Pré-visualizar';
@@ -421,18 +426,6 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         showToast(`Documento gerado com sucesso! ${forms.length} página(s) criada(s) 🎉`, 'success', 5000);
                         
-                        // Limpa todos os formulários
-                        document.querySelectorAll('.form-wrapper').forEach((wrapper, idx) => {
-                            if (idx > 0) wrapper.remove();
-                            else {
-                                wrapper.querySelectorAll('input, textarea').forEach(input => {
-                                    input.value = '';
-                                });
-                                wrapper.querySelector('.image-preview-container').style.display = 'none';
-                                wrapper.querySelector('.image-grid').innerHTML = '';
-                            }
-                        });
-                        formCount = 1;
                         submitBtn.disabled = false;
                         submitBtn.textContent = 'Gerar Documento';
                     });
