@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Upload - Relatório das Unidades ALIPEN</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://unpkg.com/jszip/dist/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx-preview@0.3.6/dist/docx-preview.js"></script>
     <style>
         .image-modal-overlay {
             position: fixed;
@@ -188,8 +190,8 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="upload-section">
+    <div class="container preview-container">
+        <div class="upload-section form-side">
             <h1>Relatório das Unidades - ALIPEN</h1>
 
             <form method="POST" action="{{ url_for('gerar_doc_modelo3') }}" id="upload3Form">
@@ -225,10 +227,19 @@
                 </div>
 
                 <div class="form-actions">
+                    <button type="button" class="btn btn-primary" id="previewBtn3">Pré-visualizar</button>
                     <button type="submit" class="btn btn-primary">Gerar Documento</button>
                     <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
                 </div>
             </form>
+        </div>
+
+        <!-- Coluna da pré-visualização -->
+        <div class="preview-section">
+            <h2>Pré-visualização</h2>
+            <div id="previewArea3" class="preview-area">
+                <div class="preview-placeholder">Preencha o formulário e clique em "Pré-visualizar" para ver o resultado aqui.</div>
+            </div>
         </div>
 
         <button id="floatingBtn" class="floating-btn" title="Adicionar formulário">
@@ -795,6 +806,69 @@
         });
 
         reindexarFormularios();
+
+        // Pré-visualização DOCX
+        const previewBtn3 = document.getElementById('previewBtn3');
+        const previewArea3 = document.getElementById('previewArea3');
+
+        previewBtn3.addEventListener('click', function() {
+            const previewFormData = new FormData(form);
+            const wrappers = formsContainer.querySelectorAll('.form-wrapper');
+
+            wrappers.forEach((wrapper, index) => {
+                const formNumber = index + 1;
+                const midia = formMediaData[formNumber] || [];
+                const cafeData = midia[0] || { file: null, legenda: '' };
+                const lancheData = midia[1] || { file: null, legenda: '' };
+                const almoco = midia[2] || { file: null, proteina: '', acompanhamento: '', peso: '' };
+                const jantar = midia[3] || { file: null, proteina: '', acompanhamento: '', peso: '' };
+
+                if (cafeData.file) previewFormData.append(`imagem_cafe-${index}`, cafeData.file);
+                previewFormData.append(`legenda_cafe-${index}`, cafeData.legenda || '');
+
+                if (lancheData.file) previewFormData.append(`imagem_lanche-${index}`, lancheData.file);
+                previewFormData.append(`legenda_lanche-${index}`, lancheData.legenda || '');
+
+                if (almoco.file) previewFormData.append(`imagem_almoco-${index}`, almoco.file);
+                previewFormData.append(`proteina_almoco-${index}`, almoco.proteina || '');
+                previewFormData.append(`peso_almoco-${index}`, almoco.peso || '');
+                previewFormData.append(`acompanhamento_almoco-${index}`, almoco.acompanhamento || '');
+
+                if (jantar.file) previewFormData.append(`imagem_jantar-${index}`, jantar.file);
+                previewFormData.append(`proteina_jantar-${index}`, jantar.proteina || '');
+                previewFormData.append(`peso_jantar-${index}`, jantar.peso || '');
+                previewFormData.append(`acompanhamento_jantar-${index}`, jantar.acompanhamento || '');
+            });
+
+            previewBtn3.disabled = true;
+            previewBtn3.textContent = 'Pré-visualizando...';
+            previewArea3.innerHTML = '<div class="preview-placeholder">Gerando pré-visualização...</div>';
+
+            fetch('/preview-documento-pdf-modelo3', {
+                method: 'POST',
+                body: previewFormData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.docx_b64) {
+                    const bytes = Uint8Array.from(atob(data.docx_b64), c => c.charCodeAt(0));
+                    const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+                    previewArea3.innerHTML = '';
+                    docx.renderAsync(blob, previewArea3).catch(() => {
+                        previewArea3.innerHTML = '<div class="preview-placeholder">Erro ao renderizar pré-visualização.</div>';
+                    });
+                } else {
+                    previewArea3.innerHTML = `<div class="preview-placeholder">${data.erro || 'Erro ao gerar pré-visualização.'}</div>`;
+                }
+                previewBtn3.disabled = false;
+                previewBtn3.textContent = 'Pré-visualizar';
+            })
+            .catch(() => {
+                previewArea3.innerHTML = '<div class="preview-placeholder">Erro ao gerar pré-visualização.</div>';
+                previewBtn3.disabled = false;
+                previewBtn3.textContent = 'Pré-visualizar';
+            });
+        });
     </script>
 </body>
 </html>

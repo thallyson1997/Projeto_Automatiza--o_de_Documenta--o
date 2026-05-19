@@ -489,6 +489,74 @@ def gerar_doc_modelo3():
         return {'erro': str(e)}, 500
 
 
+@app.route('/preview-documento-pdf-modelo3', methods=['POST'])
+def preview_documento_pdf_modelo3():
+    """Gera o DOCX modelo3 preenchido e retorna como base64 para renderização no browser"""
+    try:
+        from datetime import datetime
+
+        indices_formulario = []
+        for key in request.form.keys():
+            match = re.fullmatch(r'data_formulario-(\d+)', key)
+            if match:
+                indices_formulario.append(int(match.group(1)))
+
+        if not indices_formulario:
+            indices_formulario = [0]
+
+        total_formularios = max(indices_formulario) + 1
+        datas_formulario = []
+        unidades_formulario = []
+
+        for form_index in range(total_formularios):
+            data_formulario_iso = request.form.get(f'data_formulario-{form_index}', '').strip()
+            unidade_formulario = request.form.get(f'unidade_formulario-{form_index}', '').strip()
+
+            if data_formulario_iso:
+                try:
+                    data_formulario_obj = datetime.strptime(data_formulario_iso, '%Y-%m-%d')
+                    datas_formulario.append(data_formulario_obj.strftime('%d/%m/%Y'))
+                except Exception:
+                    datas_formulario.append('')
+            else:
+                datas_formulario.append('')
+            unidades_formulario.append(unidade_formulario)
+
+        imagens_formularios = []
+        for index in range(len(datas_formulario)):
+            imagem_cafe = request.files.get(f'imagem_cafe-{index}')
+            imagem_lanche = request.files.get(f'imagem_lanche-{index}')
+            imagem_almoco = request.files.get(f'imagem_almoco-{index}')
+            imagem_jantar = request.files.get(f'imagem_jantar-{index}')
+
+            dados_form = {
+                'imagem_cafe': imagem_cafe.read() if imagem_cafe and imagem_cafe.filename else None,
+                'legenda_cafe': request.form.get(f'legenda_cafe-{index}', '').strip(),
+                'imagem_lanche': imagem_lanche.read() if imagem_lanche and imagem_lanche.filename else None,
+                'legenda_lanche': request.form.get(f'legenda_lanche-{index}', '').strip(),
+                'imagem_almoco': imagem_almoco.read() if imagem_almoco and imagem_almoco.filename else None,
+                'proteina_almoco': request.form.get(f'proteina_almoco-{index}', '').strip(),
+                'peso_almoco': request.form.get(f'peso_almoco-{index}', '').strip(),
+                'acompanhamento_almoco': request.form.get(f'acompanhamento_almoco-{index}', '').strip(),
+                'imagem_jantar': imagem_jantar.read() if imagem_jantar and imagem_jantar.filename else None,
+                'proteina_jantar': request.form.get(f'proteina_jantar-{index}', '').strip(),
+                'peso_jantar': request.form.get(f'peso_jantar-{index}', '').strip(),
+                'acompanhamento_jantar': request.form.get(f'acompanhamento_jantar-{index}', '').strip()
+            }
+            imagens_formularios.append(dados_form)
+
+        documento_bytes = gerar_documento_modelo3_alipen(
+            datas_formulario,
+            unidades_formulario,
+            imagens_formularios
+        )
+
+        docx_b64 = base64.b64encode(documento_bytes).decode('utf-8')
+        return jsonify({'docx_b64': docx_b64})
+    except Exception as e:
+        return jsonify({'erro': f'Erro ao gerar pré-visualização: {str(e)}'}), 500
+
+
 def convertar_data(data_iso):
     """Converte data de formato ISO (YYYY-MM-DD) para DD.MM.YYYY"""
     try:
