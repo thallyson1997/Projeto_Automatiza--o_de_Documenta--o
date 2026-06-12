@@ -6,6 +6,13 @@ import base64
 import io
 import re
 import os
+import pandas as pd
+from pathlib import Path
+from datetime import datetime
+import warnings
+
+# Suprimir avisos do openpyxl
+warnings.filterwarnings('ignore', category=UserWarning, module='openpyxl')
 
 app = Flask(__name__, template_folder='templates')
 
@@ -217,6 +224,85 @@ def upload2():
 def upload3():
     """Rota da página de upload para relatório ALIPEN"""
     return render_template('upload3.html')
+
+
+@app.route('/consolidador', methods=['GET', 'POST'])
+def consolidador():
+    if request.method == 'POST':
+        files = request.files.getlist('files[]')
+        if not files:
+            return "Nenhum arquivo enviado", 400
+
+        try:
+            output_stream, nome_mes_pt, ano = consolidar_arquivos_excel(files)
+            
+            output_stream.seek(0)
+            
+            return send_file(
+                output_stream,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                as_attachment=True,
+                download_name=f'SIISP-{nome_mes_pt}-{ano}.xlsx'
+            )
+        except Exception as e:
+            return f"Erro ao consolidar arquivos: {e}", 500
+            
+    return render_template('consolidador.html')
+
+
+def consolidar_arquivos_excel(files):
+    dados_consolidados = []
+    
+    for file in files:
+        try:
+            nome_arquivo = Path(file.filename).stem
+            data_str = nome_arquivo.replace("quantitativoDiario-", "")
+            
+            df = pd.read_excel(file, header=0, skiprows=1)
+            
+            df['DATA_ARQUIVO'] = pd.to_datetime(data_str, format="%d-%m-%Y")
+            
+            agrupado = df.groupby(['DATA_ARQUIVO', 'UNIDADE PRISIONAL']).size().reset_index(name='QUANTIDADE')
+            
+            dados_consolidados.append(agrupado)
+            
+        except Exception as e:
+            # Ignorar arquivos que não seguem o padrão ou causam erros
+            print(f"Erro ao processar o arquivo {file.filename}: {e}")
+            pass
+
+    if not dados_consolidados:
+        raise ValueError("Nenhum dado válido para consolidar. Verifique o nome e o formato dos arquivos.")
+
+    resultado = pd.concat(dados_consolidados, ignore_index=True)
+    
+    tabela_resultado = resultado.pivot_table(
+        index='DATA_ARQUIVO',
+        columns='UNIDADE PRISIONAL',
+        values='QUANTIDADE',
+        aggfunc='sum'
+    )
+    
+    tabela_resultado = tabela_resultado.sort_index()
+    
+    tabela_resultado.index.name = 'DATA'
+
+    primeira_data = tabela_resultado.index[0]
+    nome_mes = primeira_data.strftime('%B').upper()
+    ano = primeira_data.year
+
+    meses_pt = {
+        'JANUARY': 'JANEIRO', 'FEBRUARY': 'FEVEREIRO', 'MARCH': 'MARCO', 'APRIL': 'ABRIL',
+        'MAY': 'MAIO', 'JUNE': 'JUNHO', 'JULY': 'JULHO', 'AUGUST': 'AGOSTO',
+        'SEPTEMBER': 'SETEMBRO', 'OCTOBER': 'OUTUBRO', 'NOVEMBER': 'NOVEMBRO', 'DECEMBER': 'DEZEMBRO'
+    }
+    nome_mes_pt = meses_pt.get(nome_mes, nome_mes)
+    
+    output = io.BytesIO()
+    tabela_resultado.to_excel(output, index=True)
+    output.seek(0)
+    
+    return output, nome_mes_pt, ano
 
 
 @app.route('/gerar-documento', methods=['POST'])

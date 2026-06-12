@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consolidação de Internos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body data-submit-url="/consolidador">
+    <div class="container preview-container">
+        <div class="upload-section form-side">
+            <h1>Consolidacao de Internos</h1>
+            <div id="formsContainer">
+                <div class="form-wrapper" data-form-number="1">
+                    <div class="form-header">
+                        <h3>Envio de Planilhas</h3>
+                    </div>
+                    <form action="/consolidador" method="post" enctype="multipart/form-data" class="document-form" data-form-index="0">
+                        <div class="form-group">
+                            <label for="file">Arquivos Excel</label>
+                            <input type="file" name="files[]" id="file" accept=".xlsx,.xls" multiple required>
+                            <p class="form-hint">Selecione um ou mais arquivos no formato quantitativoDiario-DD-MM-YYYY.xlsx.</p>
+                            <p class="form-hint">A consolidacao agrupa por data e unidade prisional e gera uma planilha unica para download.</p>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Consolidar e Baixar</button>
+                            <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="preview-section">
+            <h2>Como Funciona</h2>
+            <div class="preview-area">
+                <div style="color: #555; line-height: 1.7; font-size: 1rem;">
+                    <p><strong>1.</strong> Envie os arquivos Excel diarios.</p>
+                    <p><strong>2.</strong> O sistema le a data pelo nome do arquivo.</p>
+                    <p><strong>3.</strong> Os dados sao consolidados por unidade prisional.</p>
+                    <p><strong>4.</strong> Voce baixa um Excel final pronto.</p>
+                    <br>
+                    <p><strong>Nome do download:</strong> SIISP-MES-ANO.xlsx</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
