@@ -4,6 +4,7 @@ from functions.document_generator2 import gerar_documento_modelo2_empresa
 from functions.document_generator3 import gerar_documento_modelo3_alipen
 import base64
 import io
+import gc
 import re
 import os
 import pandas as pd
@@ -258,13 +259,16 @@ def consolidar_arquivos_excel(files):
             nome_arquivo = Path(file.filename).stem
             data_str = nome_arquivo.replace("quantitativoDiario-", "")
             
-            df = pd.read_excel(file, header=0, skiprows=1, usecols=['UNIDADE PRISIONAL'], engine='openpyxl')
+            file_bytes = io.BytesIO(file.read())
+            df = pd.read_excel(file_bytes, header=0, skiprows=1, engine='calamine')
+            del file_bytes
             
             df['DATA_ARQUIVO'] = pd.to_datetime(data_str, format="%d-%m-%Y")
             
             agrupado = df.groupby(['DATA_ARQUIVO', 'UNIDADE PRISIONAL']).size().reset_index(name='QUANTIDADE')
-            
             dados_consolidados.append(agrupado)
+            del df
+            gc.collect()
             
         except Exception as e:
             # Ignorar arquivos que não seguem o padrão ou causam erros
