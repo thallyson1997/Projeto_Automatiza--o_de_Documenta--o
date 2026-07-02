@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consolidação de Internos</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
-<body data-submit-url="/consolidador">
+<body>
     <div class="container preview-container">
         <div class="upload-section form-side">
             <h1>Consolidacao de Internos</h1>
@@ -15,18 +16,19 @@
                     <div class="form-header">
                         <h3>Envio de Planilhas</h3>
                     </div>
-                    <form action="/consolidador" method="post" enctype="multipart/form-data" class="document-form" data-form-index="0">
+                    <div class="document-form">
                         <div class="form-group">
-                            <label for="file">Arquivos Excel</label>
-                            <input type="file" name="files[]" id="file" accept=".xlsx,.xls" multiple required>
+                            <label for="fileInput">Arquivos Excel</label>
+                            <input type="file" id="fileInput" accept=".xlsx,.xls" multiple required>
                             <p class="form-hint">Selecione um ou mais arquivos no formato quantitativoDiario-DD-MM-YYYY.xlsx.</p>
                             <p class="form-hint">A consolidacao agrupa por data e unidade prisional e gera uma planilha unica para download.</p>
                         </div>
+                        <div id="statusBox" style="display:none; padding:10px 14px; margin:12px 0; border-radius:6px; font-size:14px;"></div>
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-primary">Consolidar e Baixar</button>
+                            <button type="button" id="btnConsolidar" class="btn btn-primary">Consolidar e Baixar</button>
                             <a href="{{ url_for('index') }}" class="btn btn-secondary">Voltar</a>
                         </div>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -45,5 +47,111 @@
             </div>
         </div>
     </div>
+
+    <script>
+    const mesesPT = {
+        '01': 'JANEIRO', '02': 'FEVEREIRO', '03': 'MARCO',    '04': 'ABRIL',
+        '05': 'MAIO',    '06': 'JUNHO',      '07': 'JULHO',    '08': 'AGOSTO',
+        '09': 'SETEMBRO','10': 'OUTUBRO',    '11': 'NOVEMBRO', '12': 'DEZEMBRO'
+    };
+
+    function setStatus(msg, tipo) {
+        const box = document.getElementById('statusBox');
+        box.style.display = 'block';
+        box.textContent = msg;
+        const estilos = {
+            info:    { bg: '#eff6ff', color: '#1d4ed8', border: '#bfdbfe' },
+            sucesso: { bg: '#f0fdf4', color: '#166534', border: '#bbf7d0' },
+            erro:    { bg: '#fef2f2', color: '#991b1b', border: '#fecaca' }
+        };
+        const s = estilos[tipo] || estilos.info;
+        box.style.background = s.bg;
+        box.style.color = s.color;
+        box.style.border = '1px solid ' + s.border;
+    }
+
+    document.getElementById('btnConsolidar').addEventListener('click', async () => {
+        if (typeof XLSX === 'undefined') {
+            setStatus('Erro: biblioteca Excel nao carregou. Verifique sua conexao.', 'erro');
+            return;
+        }
+
+        const input = document.getElementById('fileInput');
+        const files = input.files;
+        if (!files.length) { setStatus('Selecione ao menos um arquivo.', 'erro'); return; }
+
+        const btn = document.getElementById('btnConsolidar');
+        btn.disabled = true;
+        setStatus('Processando 0 de ' + files.length + ' arquivo(s)...', 'info');
+
+        const contagem = {};
+        const datasSet = new Set();
+        const unidadesSet = new Set();
+        const datasFormatadas = {};
+        let processados = 0;
+
+        for (const file of files) {
+            try {
+                const nome = file.name.replace(/\.(xlsx|xls)$/i, '');
+                const dataStr = nome.replace('quantitativoDiario-', '');
+                const partes = dataStr.split('-');
+                if (partes.length !== 3) continue;
+
+                const [dia, mes, ano] = partes;
+                const dataISO = ano + '-' + mes.padStart(2, '0') + '-' + dia.padStart(2, '0');
+                datasSet.add(dataISO);
+                datasFormatadas[dataISO] = dia.padStart(2, '0') + '/' + mes.padStart(2, '0') + '/' + ano;
+
+                const buffer = await file.arrayBuffer();
+                const wb = XLSX.read(buffer, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+
+                // range:1 pula a primeira linha (titulo) e usa a segunda como cabecalho
+                const rows = XLSX.utils.sheet_to_json(ws, { range: 1, defval: '' });
+
+                for (const row of rows) {
+                    const unidade = String(row['UNIDADE PRISIONAL'] || '').trim();
+                    if (!unidade) continue;
+                    unidadesSet.add(unidade);
+                    const key = dataISO + '|' + unidade;
+                    contagem[key] = (contagem[key] || 0) + 1;
+                }
+
+                processados++;
+                setStatus('Processando ' + processados + ' de ' + files.length + ' arquivo(s)...', 'info');
+            } catch (e) {
+                console.error('Erro em ' + file.name + ':', e);
+            }
+        }
+
+        if (!Object.keys(contagem).length) {
+            setStatus('Nenhum dado encontrado. Verifique os arquivos.', 'erro');
+            btn.disabled = false;
+            return;
+        }
+
+        const datas    = [...datasSet].sort();
+        const unidades = [...unidadesSet].sort();
+
+        const linhas = [
+            ['DATA', ...unidades],
+            ...datas.map(d => [
+                datasFormatadas[d],
+                ...unidades.map(u => contagem[d + '|' + u] || '')
+            ])
+        ];
+
+        const wbOut = XLSX.utils.book_new();
+        const wsOut = XLSX.utils.aoa_to_sheet(linhas);
+        XLSX.utils.book_append_sheet(wbOut, wsOut, 'Consolidado');
+
+        const [anoOut, mesOut] = datas[0].split('-');
+        const nomeArquivo = 'SIISP-' + (mesesPT[mesOut] || mesOut) + '-' + anoOut + '.xlsx';
+        XLSX.writeFile(wbOut, nomeArquivo);
+
+        setStatus('Concluido! ' + processados + ' arquivo(s) processado(s). Download iniciado.', 'sucesso');
+        btn.disabled = false;
+    });
+    </script>
 </body>
 </html>
