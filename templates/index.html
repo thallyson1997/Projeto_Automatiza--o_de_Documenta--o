@@ -72,34 +72,10 @@
             box-shadow: none;
         }
 
-        /* ===== Decorações São João ===== */
-        .bandeiras-topo {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 163px;
-            background-image: url('{{ url_for('static', filename='images/bandeiras.png') }}');
-            background-repeat: repeat-x;
-            background-size: auto 100%;
-            background-position: top left;
-            z-index: 1000;
-            pointer-events: none;
-        }
 
-        .fogueira-deco {
-            position: fixed;
-            bottom: 0;
-            right: 0;
-            width: 160px;
-            z-index: 1000;
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
-    <div class="bandeiras-topo"></div>
-    <img src="{{ url_for('static', filename='images/fogueira.gif') }}" class="fogueira-deco" alt="Fogueira">
     <div class="container">
         <div class="welcome-section">
             <h1>Bem-vindo à Automatização de Documentação</h1>
