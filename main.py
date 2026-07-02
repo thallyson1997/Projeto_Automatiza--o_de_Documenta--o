@@ -258,7 +258,7 @@ def consolidar_arquivos_excel(files):
             nome_arquivo = Path(file.filename).stem
             data_str = nome_arquivo.replace("quantitativoDiario-", "")
             
-            df = pd.read_excel(file, header=0, skiprows=1)
+            df = pd.read_excel(file, header=0, skiprows=1, usecols=['UNIDADE PRISIONAL'], engine='openpyxl')
             
             df['DATA_ARQUIVO'] = pd.to_datetime(data_str, format="%d-%m-%Y")
             
